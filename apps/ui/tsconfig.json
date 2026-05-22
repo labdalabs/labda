@@ -1,0 +1,52 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "strict": true,
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "types": ["jest", "node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@labda/core-common": ["../../libs/core/common/src/index.ts"],
+      "@labda/core-common/testing": ["../../libs/core/common/src/testing.ts"],
+      "@labda/models": ["../../libs/shared/isomorphic/models/src/index.ts"],
+      "@labda/ui": ["../../libs/shared/client/ui/src/index.ts"],
+      "@labda/ui/*": ["../../libs/shared/client/ui/src/*"],
+      "@labda/ui/server": ["../../libs/shared/client/ui/src/server.ts"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    "../../apps/ui/.next/types/**/*.ts",
+    "../../dist/apps/ui/.next/types/**/*.ts",
+    "next-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "jest.config.ts",
+    "jest.config.cts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
+}

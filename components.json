@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "apps/ui/src/app/global.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@labda/ui/components",
+    "utils": "@labda/ui/lib/utils",
+    "ui": "@labda/ui/components/ui",
+    "lib": "@labda/ui/lib",
+    "hooks": "@labda/ui/hooks"
+  },
+  "iconLibrary": "lucide"
+}

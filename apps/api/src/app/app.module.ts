@@ -1,0 +1,58 @@
+import { Module, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { APP_PIPE } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
+import { randomUUID } from 'node:crypto';
+import { McpModule, McpTransportType } from '@rekog/mcp-nest';
+import { CommonModule } from '@labda/core-common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { config, validate } from './configuration';
+
+@Module({
+  controllers: [AppController],
+  imports: [
+    LoggerModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        pinoHttp: {
+          level: configService.get('logLevel'),
+          transport: configService.get('logPretty')
+            ? { target: 'pino-pretty' }
+            : undefined,
+          genReqId: (req, res) => {
+            const id =
+              (req.id as string) ?? req.headers['x-request-id'] ?? randomUUID();
+            res.setHeader('X-Request-Id', id);
+            return id;
+          },
+        },
+        exclude: [{ method: RequestMethod.ALL, path: 'health' }],
+      }),
+      inject: [ConfigService],
+    }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      load: [config],
+      validate,
+    }),
+    McpModule.forRoot({
+      name: 'labda',
+      version: '1.0.0',
+      transport: McpTransportType.STREAMABLE_HTTP,
+    }),
+    CommonModule,
+  ],
+  providers: [
+    AppService,
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    },
+  ],
+})
+export class AppModule {}
