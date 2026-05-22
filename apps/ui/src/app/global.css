@@ -194,3 +194,7 @@
     @apply font-sans;
   }
 }
+
+@keyframes tick-rotate {
+  to { transform: rotate(360deg); }
+}

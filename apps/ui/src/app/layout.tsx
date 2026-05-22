@@ -6,8 +6,8 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'labda',
-  description: 'labda UI — fill in your own description',
+  title: 'Labda',
+  description: 'A sandbox for bioscience. Currently incubating.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,30 +1,64 @@
-import Link from 'next/link';
-import { Button } from '@labda/ui/components/ui/button';
-import { Dashboard } from '@/components/dashboard';
-import { createClient } from '@/lib/supabase/server';
+import Image from 'next/image';
 
-// Server Component: reads the current session via the server Supabase client.
-// Unauthenticated -> minimal landing with a sign-in link.
-// Authenticated   -> Dashboard demo (API call + realtime subscription + sign out).
-export default async function Index() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const brandFont =
+  '"Avenir Next", "Avenir Next LT Pro", Avenir, "Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
-  if (!user) {
-    return (
-      <main className="mx-auto mt-32 max-w-md p-6 text-center">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight">labda</h1>
-        <p className="mb-8 text-muted-foreground">
-          A Supabase + Nest + Next.js starter. Sign in to see the dashboard demo.
+export default function ComingSoon() {
+  return (
+    <main
+      style={{ fontFamily: brandFont }}
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#4A95CC] via-[#8FC0DE] to-[#F0E8D2] px-6 py-20"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.22] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
+
+      <div className="relative z-10 flex w-full max-w-3xl flex-col items-center text-center text-white">
+        <h1 className="leading-none">
+          <span className="sr-only">Labda</span>
+          <Image
+            src="/labda_logo.png"
+            alt="Labda"
+            width={520}
+            height={520}
+            priority
+            className="h-36 w-auto [filter:brightness(0)_invert(1)] md:h-52"
+          />
+        </h1>
+
+        <p className="mt-12 text-2xl font-normal text-white md:text-4xl">
+          A sandbox for bioscience.
         </p>
-        <Button asChild>
-          <Link href="/auth/sign-in">Sign in</Link>
-        </Button>
-      </main>
-    );
-  }
 
-  return <Dashboard user={user} />;
+        <div className="mt-24 flex items-center gap-3 text-base text-white/90 md:text-lg">
+          <p>Currently incubating</p>
+          <span aria-hidden className="inline-flex h-5 w-5 items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-5 w-5"
+              style={{
+                animation: 'tick-rotate 12s steps(60, end) infinite',
+                transformOrigin: 'center',
+              }}
+            >
+              <path d="M15 22q-.425 0-.712-.288T14 21v-1.075q-.575-.1-1.088-.288t-.962-.512l-1 1q-.3.275-.712.288t-.713-.288t-.3-.712t.3-.713l1.025-1.025q-.075-.125-.15-.262t-.15-.263l-.675-1.325L8.35 17.05q-.3.275-.7.288t-.7-.288t-.3-.7t.3-.7l1.225-1.25l-1.325-.65q-.125-.05-.225-.112T6.4 13.5l-.9.9q-.3.275-.712.288t-.713-.288t-.3-.7t.3-.7l.875-.875q-.35-.475-.562-1.012T4.075 10H3q-.425 0-.712-.288T2 9t.288-.712T3 8h1.125q.125-.475.3-.9t.45-.825L4 5.4q-.3-.3-.3-.7T4 4t.7-.3t.7.3l.875.875q.4-.275.825-.45t.9-.3V3q0-.425.288-.713T9 2t.713.288T10 3v1.075q.6.1 1.138.325t1.012.575l.875-.875q.3-.3.712-.3t.713.3t.3.7t-.3.7l-.925.925q.05.1.112.2t.113.225l.625 1.25l1.15-1.15q.3-.3.713-.3t.712.3t.3.713t-.3.712l-1.2 1.175l1.4.7q.15.075.313.163t.287.187l1-1q.3-.3.7-.3t.7.3t.3.713t-.3.712l-1 .975q.3.45.488.95t.287 1.05H21q.425 0 .713.288T22 15t-.288.713T21 16h-1.125q-.125.475-.3.888t-.45.812l.85.85q.3.3.3.713t-.3.712q-.3.275-.712.288t-.713-.288l-.825-.85q-.4.275-.825.45t-.9.3V21q0 .425-.287.713T15 22m-.15-4q1.45 0 2.388-1.1t.712-2.55q-.125-.75-.562-1.35t-1.138-.95l-1.65-.85q-.575-.3-1.037-.762T12.8 9.4l-.85-1.65q-.4-.8-1.15-1.275T9.15 6Q7.7 6 6.763 7.1T6.05 9.65q.125.75.563 1.35t1.137.95l1.65.85q.575.3 1.038.762T11.2 14.6l.85 1.65q.4.8 1.15 1.275t1.65.475M9.5 10.5q.625 0 1.063-.437T11 9t-.437-1.062T9.5 7.5t-1.062.438T8 9t.438 1.063T9.5 10.5m5 6.25q.525 0 .888-.363t.362-.887t-.363-.888t-.887-.362t-.888.363t-.362.887t.363.888t.887.362M12 12" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      <footer className="absolute inset-x-0 bottom-6 z-10 flex justify-center px-6">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-slate-700/60">
+          © {new Date().getFullYear()} Labda
+        </p>
+      </footer>
+    </main>
+  );
 }
