@@ -43,6 +43,11 @@ Thumbs.db
 .claude/worktrees
 .claude/settings.local.json
 
+# env files (never commit — contain secrets)
+.env
+.env.local
+.env.*.local
+
 # Next.js
 .next
 out

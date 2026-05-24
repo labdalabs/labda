@@ -22,10 +22,10 @@ export default function ComingSoon() {
         <h1 className="leading-none">
           <span className="sr-only">Labda</span>
           <Image
-            src="/labda_logo.png"
+            src="/labda_logo_xs.png"
             alt="Labda"
-            width={520}
-            height={520}
+            width={640}
+            height={640}
             priority
             className="h-36 w-auto [filter:brightness(0)_invert(1)] md:h-52"
           />
