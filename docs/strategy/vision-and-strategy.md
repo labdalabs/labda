@@ -57,11 +57,13 @@ The sequencing **is** the strategy. We come for the tool, stay for the community
 
 ## 3. The wedge tool (L0)
 
-**Copilot-first, notebook-later.**
+**Copilot-first, notebook-later — delivered as an AI-native, Jupyter-native science workspace ("VS Code for science").**
 
-- **v0 = AI literature/reading + experiment-planning copilot** for bioinformatics. Genuinely excellent, narrow. Low adoption friction (a grad student tries it tonight; they won't migrate their lab notebook tonight).
-- Still captures rich process data: what they read, what they ask, how they reason toward an experiment, where they get stuck.
-- **ELN grows underneath it over time** — "log the result here" is a tiny next step after planning an experiment with the copilot. We grow *into* the notebook instead of demanding it.
+The concrete surface is a **forked, beautiful VS Code that is Jupyter-native** (the Cursor playbook applied to science), with the AI copilot built in and the ELN growing inside the notebook. Full direction + UX + build approach in **[Product Direction](./product-direction.md)**; competitor features we borrow and the whitespace we exploit in **[Competitor Teardown](./competitor-teardown.md)**.
+
+- **The copilot delivers value first:** literature/reading + experiment/analysis planning + in-cell coding help for bioinformatics. Low adoption friction — comp biologists already live in VS Code + Jupyter, so they try it tonight; nothing to migrate.
+- **The notebook IS the process record.** Code + params + outputs + narrative captured as the user already works = rich, structured process data for free (the data moat — see §5, §10).
+- **The ELN grows underneath, inside the notebook** — auto-structured, shareable, forkable entries (the "messy session → clean entry" pattern). We grow *into* the notebook instead of demanding a separate one.
 - The copilot also routes the marketplace: it learns who's good at what, and detects stuck-points that become marketplace tasks.
 
 ---
