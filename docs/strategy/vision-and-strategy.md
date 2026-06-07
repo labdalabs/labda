@@ -19,6 +19,7 @@ The community of scientists is the heart. Research-via-API is the service. The t
 - ML's job is to **elevate** scientists: make them faster, surface what they'd normally miss, accelerate discovery.
 - We **augment, never replace.** (See §13.)
 - Anti-slop. We pay scientists fairly for the expertise that AI currently scrapes for free.
+- **Built around the scientific method, in the scientist's own language.** The whole product is organized around the research lifecycle and its real artifacts — hypotheses, protocols, datasets, notebooks, findings, preprints/papers — not generic SaaS abstractions. (Information architecture + ubiquitous language in [Product Direction §8–9](./product-direction.md).)
 
 ---
 

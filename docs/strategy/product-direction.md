@@ -88,7 +88,65 @@ Capture is designed-in, not bolted-on — a first-class feature of the surface.
 
 ---
 
-## 8. Open considerations / next decisions
+## 8. Built on the scientific method — information architecture
+
+**Principle: the whole product is organized around the established scientific method and its real artifacts — and it speaks the scientist's language, not generic SaaS terms.** (Reference: the OSF research lifecycle and OSF project structure.) This is the information architecture, the data model, *and* the copilot's mental model.
+
+### The research lifecycle (the spine)
+We structure the product around the canonical loop (OSF's wheel):
+
+**Search & Discover → Develop Idea / Hypothesis → Design Study → Acquire Materials → Collect Data → Store Data → Analyze Data → Interpret Findings → Write Report → Publish (Preprint/Paper)** → *(feeds back into Search & Discover)*.
+
+The copilot is **lifecycle-aware** — it knows which stage you're in and helps accordingly (find papers, sharpen a hypothesis, draft a protocol, run an analysis, interpret a result, write it up). For comp-bio we keep the canonical spine but tune the weight: "Acquire Materials / Collect Data" is mostly **acquiring datasets**, and "Analyze / Interpret" (notebooks, pipelines) is where the center of gravity sits.
+
+### The object model (the hierarchy)
+First-class objects, named in scientists' terms (OSF's Lab → Research Initiative → Hypothesis / Data collection / Protocol / Lab notebooks):
+
+```
+Lab  (a PI's group, or an individual researcher's space)
+ └─ Project / Study  (a research initiative)
+     ├─ Hypothesis          the testable claim
+     ├─ Preregistration     time-stamped, locked study plan
+     ├─ Protocol            the method/procedure (forkable, citable)
+     ├─ Dataset             acquired/collected data
+     ├─ Notebook            the computational record (Jupyter) = our ELN unit
+     ├─ Analysis            the work over data
+     ├─ Finding / Result    the interpreted outcome (claim supported/refuted)
+     └─ Report → Preprint → Paper   the write-up and its publication
+```
+
+**Why this is strategic, not cosmetic:**
+- **Trust/credibility** — it reads as "built by people who actually do science," which is the brand (§12 of strategy).
+- **A smarter copilot** — reasoning over *Hypothesis/Protocol/Finding* objects beats reasoning over generic "documents." It can check a result against its hypothesis, or a method against its protocol.
+- **The object chain IS the process-data moat** — `Finding → Analysis → Notebook → Dataset → Protocol → Hypothesis` is exactly the structured provenance AI labs want and verification needs (trace any claim back through its method and data).
+- **Verification maps natively** — a verification job targets a **Finding**, re-runs its **Protocol/Notebook** on its **Dataset**, and emits SCORE-style reproducibility/robustness/replication (§7 of strategy). Preregistration is the anchor (ties to the openness-multiplier finding).
+
+---
+
+## 9. Ubiquitous language
+
+Adopt the field's vocabulary everywhere — UI, copilot, API/MCP, and code. Avoid generic software words when a scientific term exists. (This is the product-level [Ubiquitous Language](../../CONTEXT.md); keep code and UI in sync with it.)
+
+| Use this term | Means | Avoid |
+|---|---|---|
+| **Lab** | A research group or individual researcher's top-level space | Organization, team, account |
+| **Project / Study** | A research initiative; a designed investigation | Workspace, repo |
+| **Hypothesis** | The testable claim under investigation | — |
+| **Preregistration** | Time-stamped, locked study plan (pre-data) | Spec, plan |
+| **Protocol** | The method/procedure; forkable, citable | Recipe, SOP, template |
+| **Dataset** | Acquired/collected data | File, upload |
+| **Notebook** | The computational record (Jupyter) = ELN unit | Document, page, file |
+| **Analysis** | Computational work over a dataset | Job, script run |
+| **Finding / Result** | Interpreted outcome; claim supported/refuted | Output |
+| **Report → Preprint → Paper** | Write-up → pre-publication → published | Doc, article |
+| **Replication / Reproduction** | Verification acts (new data / same data) | Re-check, retest |
+| **Provenance** | The chain linking a finding back to its data & method | History, audit log |
+
+Wet-lab terms (Assay, Reagent, Sample) stay parked until the wet-lab tier (§6 of strategy). The MCP task spec and the marketplace use these same nouns — a task is "verify this **Finding**" or "run this **Analysis** on this **Dataset**," not "do this task."
+
+---
+
+## 10. Open considerations / next decisions
 
 1. **MVP scope.** Do we ship the full forked IDE in v0, or a focused slice (copilot + notebook + a few panels) first? Lean toward a **focused slice of the forked surface** — the differentiated workspace is the point, but we don't build every panel/widget before launch. (Ties to strategy §14 sequencing.)
 2. **Compute model** — local vs hosted kernels (see §3). Decide alongside marketplace productization.
@@ -97,6 +155,6 @@ Capture is designed-in, not bolted-on — a first-class feature of the surface.
 
 ---
 
-## 9. What we steal / the whitespace (pointers)
+## 11. What we steal / the whitespace (pointers)
 
 The full **features-to-borrow list** and the **confirmed whitespace** (no one connects to paid experts, no one productizes process data, on-demand paid cross-lab verification is unbuilt, structured verified-outcome data is unowned) live in **[Competitor Teardown](./competitor-teardown.md)** — already committed. This doc is where those findings converge into a single product surface: **a beautiful, AI-native, Jupyter-native, forked-VS-Code workspace that streamlines comp-bio research and becomes the ELN, the data moat, and the marketplace on-ramp.**
