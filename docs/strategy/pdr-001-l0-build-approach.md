@@ -1,8 +1,8 @@
 # PDR-001 — L0 Build Approach: VS Code Plugin, Not a Fork
 
-> **Status:** Decided. Supersedes the "fork VS Code" decision in [Product Direction §3](./product-direction.md) for the v0/L0 phase.
-> **Companion docs:** [Vision & Strategy](./vision-and-strategy.md) (§3 wedge tool, §14 sequencing) · [Product Direction](./product-direction.md) · [Competitor Teardown](./competitor-teardown.md)
-> **Last updated:** 2026-06-13
+> **Status:** Decided. Supersedes the "fork VS Code" decision in [Product Direction §3](./product-direction.md) for the v0/L0 phase. Refined 2026-06-17 (§3a): plugin built as a **migratable webview app**.
+> **Companion docs:** [Vision & Strategy](./vision-and-strategy.md) (§3 wedge tool, §14 sequencing) · [Product Direction](./product-direction.md) · [Architecture & Stack (PDR-002)](./pdr-002-architecture-and-stack.md) · [Instrument Integrations](./instrument-integrations.md) · [Competitor Teardown](./competitor-teardown.md)
+> **Last updated:** 2026-06-17
 > **Owner:** CTO
 
 ---
@@ -39,6 +39,19 @@ The grilling resolved each. The decisive realization: **the only thing that forc
 | 8 | Biggest fork fear? | Surface area / maintenance burden for a small team → resolved by **plugin-forever**. | The fork's "heaviness" is mostly the upstream-merge burden. Plugin removes it entirely. |
 | 9 | OS coverage? | **Windows (primary assumption), macOS, Linux** — all free via the plugin. **Remote-SSH is a v0 must-have.** | Bioinformatics lives on remote Linux HPC clusters; scientists must keep that workflow with zero friction. |
 | 10 | Distribution? | **v0:** Marketplace/Open VSX listing **+** a branded VS Code Profile. **v1 (post-raise):** real branded installer with auto-update. | The Profile delivers ~80% of the "branded product" feel for ~0% of installer/signing/notarization plumbing. |
+
+---
+
+## 3a. Update (2026-06-17) — standalone reopened, resolved as a *migratable webview*
+
+The plugin-vs-standalone question was reopened in the 2026-06-17 meeting: Christian doesn't love shipping "just a VS Code extension" and leans toward a standalone app (the conviction that strong products don't worry about fitting an existing ecosystem). **Resolution — we stay a plugin for v0, but architect it so a standalone app is a cheap migration later:**
+
+- **Build the secret-sauce as a self-contained webview.** Per Paweł: if the plugin is essentially our own webview app *wrapped* in a VS Code extension, then "going standalone" later is mostly re-wrapping what we already wrote — not a rewrite. Design for that from day one.
+- **Why plugin still wins now (the case that held):** scientists already live in Python/Jupyter and these IDEs; we avoid burning ~6 months building an editor/kernel/ecosystem that already exists; and VS Code runs **in the browser**, so we can also host the same webview as a zero-install URL. v0's job (strategy §14) is community + proving the loop, not a bespoke shell.
+- **The standalone path is a two-track, not a one-way door.** Build once as a portable webview; if conversion data or a plugin-API ceiling argues for it (the §7 triggers), ship a standalone/hosted-browser build by re-wrapping. Maintenance isn't "×2" if the app layer is shared.
+- **Decision discipline:** we proceed as a plugin and *don't keep re-litigating it*; we let real usage (how many people actually adopt it in VS Code — including us, for our own research) tell us whether/when standalone earns its keep.
+
+This refines, but does not reverse, the §1 decision. The architecture choices that make the webview portable live in [PDR-002](./pdr-002-architecture-and-stack.md).
 
 ---
 
