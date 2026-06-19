@@ -1,60 +1,70 @@
-# <Project name>
+# Labda
 
-<One-paragraph description of what the project is. Domain language, not implementation language.>
+A beautiful, AI-native, Jupyter-native workspace that streamlines computational research and quietly becomes the ELN by capturing the process record.
 
 ## Language
 
-**<Term>**:
-<One-paragraph definition in the project's domain language. Specific. Reference how the term shows up in the system if helpful — a table name, a URL segment, a header.>
-_Avoid_: <synonym 1>, <synonym 2>, <synonym 3>
+**Lab**:
+A research group or individual researcher's top-level space.
+_Avoid_: Organization, team, account
 
-**<Term>**:
-<...>
-_Avoid_: <...>
+**Project / Study**:
+A research initiative; a designed investigation. 
+_Avoid_: Workspace, repo
 
-<!--
-Example of the shape (replace with the project's actual terms):
+**Hypothesis**:
+The testable claim under investigation.
 
-**Organization**:
-The primary shareable unit — a named container that groups Members and Projects. Access control, billing, and external integrations are scoped to an Organization. Stored in the `organization` table.
-_Avoid_: account, tenant, company, workspace (when referring to the container)
+**Protocol**:
+The method/procedure; forkable, citable.
+_Avoid_: Recipe, SOP, template
 
-**Member**:
-A human Actor authenticated via OAuth (the only auth path). Members hold a role on each Organization they belong to (`owner / admin / member`).
-_Avoid_: user, account, person
+**Reference**:
+A citable source, literature, or prior research context supporting the investigation.
 
-Notes for filling this file in:
-- Lead with the most fundamental terms (the ones other terms reference).
-- Be ruthless about "Avoid". The list is what makes the glossary opinionated.
-- Reference the system: "stored as `key_hash` in `<table>`", "served at `/api/<resource>/:id`". Glossary terms should anchor to artifacts.
-- Don't pre-populate. Add a term when it first matters.
--->
+### Forthcoming (not yet modelled)
+
+**Dataset**:
+Acquired/collected data.
+_Avoid_: File, upload
+
+**Notebook**:
+The computational record (Jupyter) = ELN unit.
+_Avoid_: Document, page, file
+
+**Analysis**:
+Computational work over a dataset.
+_Avoid_: Job, script run
+
+**Finding / Result**:
+Interpreted outcome; claim supported/refuted.
+_Avoid_: Output
+
+**Report → Preprint → Paper**:
+Write-up → pre-publication → published.
+_Avoid_: Doc, article
+
+**Preregistration**:
+Time-stamped, locked study plan (pre-data).
+_Avoid_: Spec, plan
+
+**Replication / Reproduction**:
+Verification acts (new data / same data).
+_Avoid_: Re-check, retest
+
+**Provenance**:
+The chain linking a finding back to its data & method.
+_Avoid_: History, audit log
 
 ## Relationships
 
-<Short bullets describing how the terms relate to each other. One or two lines each.>
-
-<!--
-Example:
-- An Organization contains one or more Projects.
-- Access granted to an Organization covers all its Projects (unless project-level overrides exist).
-- A Member holds one role (`owner / admin / member`) on an Organization.
-- An Invitation grants access to exactly one Organization at a specified role.
--->
-
-## <Optional sections>
-
-<When the domain has natural subdivisions, add sections like "AI Surfaces", "Auth", "Audit Log", "Integrations", etc. Each is a short prose explanation that uses the glossary terms.>
+- A **Lab** contains one or more **Projects** (also known as Studies).
+- A **Project / Study** nests the core research design artifacts: **Hypothesis**, **Protocol**, and **Reference**.
+- Thus, the nesting follows: Lab → Project → Hypothesis / Protocol / Reference
 
 ## Flagged ambiguities
 
 _(none yet)_
-
-<!--
-When a term is contested or undefined, add a note here rather than silently inventing one. Example:
-
-- "Inbox item" vs "Signal" — both used for the same concept across the codebase. Resolve before next refactor.
--->
 
 ---
 
