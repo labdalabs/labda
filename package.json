@@ -102,6 +102,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/supertest": "^6.0.2",
+    "@types/vscode": "^1.125.0",
     "babel-jest": "^30.0.2",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.8.0",

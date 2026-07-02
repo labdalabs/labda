@@ -8,11 +8,17 @@ import { ApiError } from '@/lib/api/client';
 import { createProject, listProjects } from '@/lib/research/queries';
 import type { Project } from '@/lib/research/types';
 
-export function ProjectsView({ email }: { email: string }) {
+export function ProjectsView({
+  authenticated = true,
+  email,
+}: {
+  authenticated?: boolean;
+  email: string;
+}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(authenticated);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,8 +33,10 @@ export function ProjectsView({ email }: { email: string }) {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    // Zero-friction: only fetch (which requires auth) when signed in. Browsing
+    // the shell needs no signup.
+    if (authenticated) void refresh();
+  }, [authenticated, refresh]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -57,13 +65,35 @@ export function ProjectsView({ email }: { email: string }) {
           <h1 className="text-2xl font-semibold">Projects</h1>
           <p className="text-sm text-muted-foreground">{email}</p>
         </div>
-        <form method="POST" action="/auth/sign-out">
-          <Button type="submit" variant="outline" size="sm">
-            Sign out
-          </Button>
-        </form>
+        {authenticated ? (
+          <form method="POST" action="/auth/sign-out">
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        ) : (
+          <Link href="/auth/sign-in">
+            <Button variant="outline" size="sm">
+              Sign in
+            </Button>
+          </Link>
+        )}
       </header>
 
+      {!authenticated && (
+        <div
+          className="rounded-xl border bg-muted/30 p-4 text-sm"
+          data-testid="signin-banner"
+        >
+          You&rsquo;re browsing Labda. {' '}
+          <Link href="/auth/sign-in" className="underline">
+            Sign in
+          </Link>{' '}
+          to create Projects and use the copilot.
+        </div>
+      )}
+
+      {authenticated && (
       <form
         onSubmit={handleCreate}
         className="space-y-3 rounded-xl border bg-card p-6"
@@ -89,7 +119,9 @@ export function ProjectsView({ email }: { email: string }) {
         </Button>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </form>
+      )}
 
+      {authenticated && (
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Your Projects</h2>
         {loading ? (
@@ -116,6 +148,7 @@ export function ProjectsView({ email }: { email: string }) {
           </ul>
         )}
       </section>
+      )}
     </section>
   );
 }

@@ -294,6 +294,9 @@ importers:
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3
+      '@types/vscode':
+        specifier: ^1.125.0
+        version: 1.125.0
       babel-jest:
         specifier: ^30.0.2
         version: 30.4.1(@babel/core@7.29.0)
@@ -391,6 +394,15 @@ importers:
       '@types/node':
         specifier: 24.x
         version: 24.13.2
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+
+  apps/plugin:
+    devDependencies:
+      '@types/vscode':
+        specifier: ^1.90.0
+        version: 1.125.0
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
@@ -5655,6 +5667,9 @@ packages:
 
   '@types/validator@13.15.10':
     resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
+
+  '@types/vscode@1.125.0':
+    resolution: {integrity: sha512-0icm/ZQAaism87P0ekHqi4/Ju9du+Tm0RUW+y7vqRsxY2cY0FNRX1nAnaW7nT6npPt2tfHiheZ55Zm9UhqonFA==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -18062,6 +18077,8 @@ snapshots:
   '@types/unist@3.0.3': {}
 
   '@types/validator@13.15.10': {}
+
+  '@types/vscode@1.125.0': {}
 
   '@types/ws@8.18.1':
     dependencies:
