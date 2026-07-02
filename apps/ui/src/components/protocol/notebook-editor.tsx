@@ -7,7 +7,7 @@ import { Input } from '@labda/ui/components/ui/input';
 import { ApiError } from '@/lib/api/client';
 import { getProtocol, saveProtocol } from '@/lib/protocol/queries';
 import { cellText, type Notebook, type NotebookCell } from '@/lib/protocol/types';
-import { getKernel } from '@/lib/kernel/pyodide-kernel';
+import { resolveKernel, type KernelMode } from '@/lib/kernel';
 import type { CellOutput, KernelVariable } from '@/lib/kernel/types';
 import { CellOutputs } from './cell-output';
 import { AnalysisPanel } from './analysis-panel';
@@ -44,7 +44,16 @@ export function NotebookEditor({
   const [kernelStatus, setKernelStatus] = useState<KernelStatus>('idle');
   const [runningId, setRunningId] = useState<string | null>(null);
   const [variables, setVariables] = useState<KernelVariable[]>([]);
+  const [kernelMode, setKernelMode] = useState<KernelMode>('pyodide');
+  const [jupyterUrl, setJupyterUrl] = useState(
+    process.env.NEXT_PUBLIC_JUPYTER_URL ?? '',
+  );
+  const [jupyterToken, setJupyterToken] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+
+  function kernel() {
+    return resolveKernel({ mode: kernelMode, jupyterUrl, jupyterToken });
+  }
 
   const load = useCallback(async () => {
     try {
@@ -99,7 +108,7 @@ export function NotebookEditor({
     setError('');
     try {
       setKernelStatus('loading');
-      await getKernel().ready();
+      await kernel().ready();
       setKernelStatus('ready');
       return true;
     } catch (err) {
@@ -111,7 +120,7 @@ export function NotebookEditor({
 
   async function refreshVariables() {
     try {
-      setVariables(await getKernel().variables());
+      setVariables(await kernel().variables());
     } catch {
       /* ignore inspector errors */
     }
@@ -124,7 +133,7 @@ export function NotebookEditor({
     const streamed: CellOutput[] = [];
     setCellOutputs(target.localId, []);
     try {
-      const result = await getKernel().execute(
+      const result = await kernel().execute(
         cellText(target.cell),
         (o) => {
           streamed.push(o);
@@ -283,6 +292,38 @@ export function NotebookEditor({
         <span className="ml-auto text-xs text-muted-foreground" data-testid="kernel-status">
           Kernel: {kernelStatus}
         </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <label className="text-muted-foreground">Compute:</label>
+        <select
+          className="rounded-md border bg-background px-2 py-1"
+          value={kernelMode}
+          onChange={(e) => setKernelMode(e.target.value as KernelMode)}
+          aria-label="Kernel compute mode"
+          data-testid="kernel-mode"
+        >
+          <option value="pyodide">Pyodide (in-browser)</option>
+          <option value="jupyter">Jupyter (remote server)</option>
+        </select>
+        {kernelMode === 'jupyter' && (
+          <>
+            <Input
+              className="h-7 w-56 text-xs"
+              placeholder="http://127.0.0.1:8888"
+              value={jupyterUrl}
+              onChange={(e) => setJupyterUrl(e.target.value)}
+              aria-label="Jupyter server URL"
+            />
+            <Input
+              className="h-7 w-40 text-xs"
+              placeholder="token"
+              value={jupyterToken}
+              onChange={(e) => setJupyterToken(e.target.value)}
+              aria-label="Jupyter token"
+            />
+          </>
+        )}
       </div>
 
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
