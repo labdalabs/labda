@@ -8,6 +8,8 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   bcrypt: true
+  electron: true
+  electron-winstaller: false
   esbuild: true
   less: true
   nx: true

@@ -1,0 +1,21 @@
+{
+  "name": "@labda/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Labda macOS desktop app (Electron shell around the Next.js UI)",
+  "author": "dkarasiewicz",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "pnpm build && electron .",
+    "start": "electron .",
+    "package": "pnpm build && electron-builder --mac",
+    "package:dir": "pnpm build && electron-builder --mac --dir",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "~5.9.2"
+  }
+}
