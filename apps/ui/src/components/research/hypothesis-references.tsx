@@ -10,6 +10,7 @@ import {
   searchLiterature,
 } from '@/lib/research/queries';
 import type { LiteratureResult, Reference } from '@/lib/research/types';
+import { CopilotThread } from '@/components/copilot/copilot-thread';
 
 // Literature search welded to a single Hypothesis: search the corpus, attach a
 // result as a Reference (with provenance + source link), and see attached
@@ -143,6 +144,8 @@ export function HypothesisReferences({
           </ul>
         )}
       </div>
+
+      <CopilotThread target={{ kind: 'hypothesis', id: hypothesisId }} />
     </div>
   );
 }

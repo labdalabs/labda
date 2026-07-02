@@ -11,6 +11,7 @@ import { getKernel } from '@/lib/kernel/pyodide-kernel';
 import type { CellOutput, KernelVariable } from '@/lib/kernel/types';
 import { CellOutputs } from './cell-output';
 import { AnalysisPanel } from './analysis-panel';
+import { CopilotThread } from '@/components/copilot/copilot-thread';
 
 // A cell with a stable local id for React keys (nbformat cells have none).
 interface EditableCell {
@@ -362,6 +363,8 @@ export function NotebookEditor({
           </table>
         )}
       </section>
+
+      <CopilotThread target={{ kind: 'protocol', id: protocolId }} />
 
       <AnalysisPanel protocolId={protocolId} />
     </section>

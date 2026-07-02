@@ -20,8 +20,9 @@ const PAPERS = [
   },
   {
     paperId: 'stub-paper-2',
-    title: 'Off-target effects of genome editing in plants',
-    abstract: 'Analysis of unintended edits.',
+    title: 'Field trial finds no yield benefit from CRISPR editing',
+    abstract:
+      'In multi-site field trials, CRISPR editing did not increase crop yield. No significant effect on yield was observed relative to controls.',
     year: 2020,
     venue: 'Cell',
     url: 'https://example.org/paper/stub-paper-2',

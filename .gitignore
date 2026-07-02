@@ -54,3 +54,8 @@ out
 # Supabase local state
 supabase/.branches
 supabase/.temp
+
+# eve agent build artifacts
+apps/copilot/.output
+apps/copilot/.eve
+apps/copilot/.nitro
