@@ -22,13 +22,49 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
   },
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'pnpm exec nx run ui:dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    cwd: workspaceRoot,
-  },
+  /* Run the local dev servers before starting the tests. The API (Nest +
+   * GraphQL + MCP) and the UI (Next.js) both need to be up; Supabase is
+   * expected to already be running (`pnpm supabase start`). */
+  webServer: [
+    {
+      // Deterministic Semantic Scholar stub so literature search e2e isn't at
+      // the mercy of the public API's rate limits.
+      command: 'node apps/ui-e2e/src/support/s2-stub.mjs',
+      url: 'http://127.0.0.1:4599/health',
+      reuseExistingServer: true,
+      timeout: 30_000,
+      cwd: workspaceRoot,
+    },
+    {
+      // Deterministic EVE agent stub — the real agent needs a live model
+      // credential, so the frontend-integration e2e runs against this.
+      command: 'node apps/ui-e2e/src/support/eve-stub.mjs',
+      url: 'http://127.0.0.1:4600/health',
+      reuseExistingServer: true,
+      timeout: 30_000,
+      cwd: workspaceRoot,
+    },
+    {
+      // Point the API at the stub for the literature corpus during e2e.
+      command:
+        'SEMANTIC_SCHOLAR_BASE_URL=http://127.0.0.1:4599 pnpm exec nx run api:serve',
+      url: 'http://localhost:3001/api',
+      reuseExistingServer: false,
+      timeout: 180_000,
+      cwd: workspaceRoot,
+    },
+    {
+      // Nx injects the root `.env` (which sets PORT=3001 for the API) into
+      // every task, so pin the UI to 3000 explicitly here. EVE_URL points the
+      // /api/eve proxy at the EVE stub.
+      command:
+        'PORT=3000 EVE_URL=http://127.0.0.1:4600 pnpm exec nx run ui:dev',
+      url: 'http://localhost:3000',
+      reuseExistingServer: true,
+      timeout: 180_000,
+      cwd: workspaceRoot,
+    },
+  ],
   projects: [
     {
       name: 'chromium',

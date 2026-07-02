@@ -1,0 +1,30 @@
+{
+  "name": "copilot",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/copilot/agent",
+  "projectType": "application",
+  "tags": ["scope:api", "type:feature", "target:server"],
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eve dev",
+        "cwd": "apps/copilot"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eve build",
+        "cwd": "apps/copilot"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eve start",
+        "cwd": "apps/copilot"
+      }
+    }
+  }
+}

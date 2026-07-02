@@ -1,0 +1,63 @@
+{
+  "name": "labda-vscode",
+  "displayName": "Labda",
+  "description": "Labda — a beautiful, AI-native, Jupyter-native research workspace, hosted as a VS Code panel.",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "labda",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "labda",
+          "title": "Labda",
+          "icon": "media/labda.svg"
+        }
+      ]
+    },
+    "views": {
+      "labda": [
+        {
+          "id": "labda.workspace",
+          "name": "Workspace",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "labda.open",
+        "title": "Labda: Open Workspace"
+      },
+      {
+        "command": "labda.reload",
+        "title": "Labda: Reload Webview"
+      }
+    ],
+    "configuration": {
+      "title": "Labda",
+      "properties": {
+        "labda.webviewUrl": {
+          "type": "string",
+          "default": "http://localhost:3000/app",
+          "description": "URL of the Labda web app the panel hosts. Point at your local dev server or the hosted deployment."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./tsconfig.json",
+    "watch": "tsc -w -p ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "typescript": "~5.9.2"
+  }
+}

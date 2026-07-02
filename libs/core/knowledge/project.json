@@ -1,0 +1,9 @@
+{
+  "name": "core-knowledge",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/knowledge/src",
+  "projectType": "library",
+  "tags": ["scope:api", "type:feature", "target:server"],
+  "// targets": "to see all targets run: nx show project core-knowledge --web",
+  "targets": {}
+}

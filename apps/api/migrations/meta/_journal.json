@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782981899035,
+      "tag": "0000_natural_gertrude_yorkes",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782985888073,
+      "tag": "0001_wakeful_madame_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782986918919,
+      "tag": "0002_right_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782988574419,
+      "tag": "0003_melodic_gravity",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782991475572,
+      "tag": "0004_productive_molly_hayes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782994017839,
+      "tag": "0005_nifty_nova",
+      "breakpoints": true
+    }
+  ]
+}
