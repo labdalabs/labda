@@ -31,7 +31,7 @@ async function signIn(page: Page, email: string): Promise<void> {
   const code = await fetchOtp(page, email);
   await page.getByPlaceholder('123456').fill(code);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL('**/');
+  await page.waitForURL('**/app');
 }
 
 // The EVE frontend integration: the assistant-ui runtime (`useEveAgentRuntime`)

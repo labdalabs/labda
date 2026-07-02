@@ -36,7 +36,7 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.getByPlaceholder('123456').fill(code);
   await page.getByRole('button', { name: 'Sign in' }).click();
   // The sign-in flow lands on '/'; wait for it to settle.
-  await page.waitForURL('**/');
+  await page.waitForURL('**/app');
 }
 
 test('sign in → create Project → add Hypothesis → see it listed', async ({
