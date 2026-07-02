@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { McpModule, McpTransportType } from '@rekog/mcp-nest';
 import { CommonModule } from '@labda/core-common';
 import { ResearchModule } from '@labda/core-research';
+import { ProtocolModule } from '@labda/core-protocol';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { config, validate } from './configuration';
@@ -56,6 +57,7 @@ import { config, validate } from './configuration';
     }),
     CommonModule,
     ResearchModule,
+    ProtocolModule,
   ],
   providers: [
     AppService,

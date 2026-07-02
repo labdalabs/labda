@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/api/client';
 import { addHypothesis, getProject } from '@/lib/research/queries';
 import type { Project } from '@/lib/research/types';
 import { HypothesisReferences } from './hypothesis-references';
+import { ProtocolsPanel } from '@/components/protocol/protocols-panel';
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
@@ -123,6 +124,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </ul>
         )}
       </section>
+
+      <ProtocolsPanel projectId={project.id} />
     </section>
   );
 }

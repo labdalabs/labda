@@ -97,3 +97,44 @@ export const reference = pgTable(
   },
   (table) => [index('Reference_hypothesisId_idx').on(table.hypothesisId)],
 );
+
+// ─── protocol context (CONTEXT.md: Protocol / Notebook) ─────────────────────
+
+// An experiment Protocol authored as a Jupyter-compatible notebook. The
+// notebook document (nbformat 4 JSON) is stored verbatim so `.ipynb` round-trips
+// losslessly. `version` increments on each save; snapshots live in
+// ProtocolVersion.
+export const protocol = pgTable(
+  'Protocol',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    title: text().notNull(),
+    // The full nbformat-4 notebook document.
+    notebook: jsonb().$type<Record<string, unknown>>().notNull(),
+    version: integer().notNull().default(1),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('Protocol_projectId_idx').on(table.projectId)],
+);
+
+// Append-only snapshot of a Protocol's notebook at each saved version.
+export const protocolVersion = pgTable(
+  'ProtocolVersion',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    protocolId: uuid()
+      .notNull()
+      .references(() => protocol.id, { onDelete: 'cascade' }),
+    version: integer().notNull(),
+    notebook: jsonb().$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('ProtocolVersion_protocolId_idx').on(table.protocolId)],
+);

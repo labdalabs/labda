@@ -15,6 +15,13 @@
       "when": 1782985888073,
       "tag": "0001_wakeful_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782986918919,
+      "tag": "0002_right_falcon",
+      "breakpoints": true
     }
   ]
 }
