@@ -134,20 +134,20 @@ export function AppShell({
   const base = projectId ? `/app/projects/${projectId}` : '';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/20">
-      <aside className="flex w-64 shrink-0 flex-col border-r bg-card/60 backdrop-blur">
+    <div className="flex h-screen overflow-hidden bg-background">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-black/[0.06] bg-muted/30">
         {/* Brand */}
-        <Link href="/app" className="flex items-center gap-2 px-4 py-4">
+        <Link href="/app" className="flex items-center gap-2 px-4 py-3.5">
           <Image
             src="/labda_logo_xs.png"
             alt="Labda"
             width={640}
             height={640}
-            className="h-6 w-auto"
+            className="h-5 w-auto"
           />
         </Link>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
           <NavItem
             href="/app"
             icon="projects"
@@ -156,8 +156,8 @@ export function AppShell({
           />
 
           {projectId && (
-            <div className="mt-3 space-y-1 rounded-lg border bg-background/40 p-1.5">
-              <div className="truncate px-2 py-1 font-heading text-sm font-semibold">
+            <div className="mt-4 space-y-0.5">
+              <div className="truncate px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
                 {activeProject?.title ?? 'Project'}
               </div>
 
@@ -231,7 +231,7 @@ export function AppShell({
         </nav>
 
         {/* Identity */}
-        <div className="border-t p-3">
+        <div className="border-t border-black/[0.06] p-3">
           {email ? (
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-sky/15 text-xs font-medium text-brand-sky">

@@ -54,6 +54,128 @@ const LABEL_FONT =
 const NODE_RADIUS = 0.62;
 const ROOT_RADIUS = 0.9;
 
+// Rich card size in world units (drawn to a canvas texture). When zoomed out
+// the card cross-fades to the dot so the whole graph reads at a glance.
+const CARD_W = 5.0;
+const CARD_H = 2.6;
+
+function smoothstep(a: number, b: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function truncate(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text;
+  let s = text;
+  while (s.length > 1 && ctx.measureText(`${s}…`).width > max) s = s.slice(0, -1);
+  return `${s}…`;
+}
+
+// A short subtitle from a node's attributes (mirrors the DOM panel's nodeMeta).
+function cardMeta(node: KnowledgeNode): string {
+  try {
+    const a = JSON.parse(node.attributes) as Record<string, unknown>;
+    if (node.type === 'Reference' && typeof a.url === 'string') return a.url;
+    if (node.type === 'Notebook' && typeof a.cells === 'number')
+      return `${a.cells} cells`;
+    if (node.type === 'Protocol' && typeof a.version === 'number')
+      return `v${a.version}`;
+    if (node.type === 'Project' && typeof a.description === 'string')
+      return a.description;
+  } catch {
+    /* fall through */
+  }
+  return node.type;
+}
+
+// Draw a node as a clean white card: type glyph chip, title, subtitle, and a
+// colored status row. Returns a texture sized CARD_W×CARD_H's aspect.
+function makeCardTexture(
+  node: KnowledgeNode,
+  color: string,
+  glyph: string,
+  selected: boolean,
+): THREE.CanvasTexture {
+  const dpr = 2;
+  const W = 500;
+  const H = 260;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  ctx.scale(dpr, dpr);
+
+  const pad = 26;
+  const radius = 22;
+  const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  };
+
+  // Card body.
+  const inset = 6;
+  roundRect(inset, inset, W - inset * 2, H - inset * 2, radius);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.lineWidth = selected ? 3 : 1.5;
+  ctx.strokeStyle = selected ? color : '#e7e5e4';
+  ctx.stroke();
+
+  // Glyph chip.
+  const chip = 54;
+  roundRect(pad, pad, chip, chip, 14);
+  ctx.fillStyle = withAlpha(color, 0.12);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.font = `600 ${chip * 0.52}px ${LABEL_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(glyph, pad + chip / 2, pad + chip / 2 + 1);
+
+  const textX = pad + chip + 18;
+  const textMax = W - textX - pad;
+
+  // Title.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#1c1917';
+  ctx.font = `600 28px ${LABEL_FONT}`;
+  ctx.fillText(truncate(ctx, node.label, textMax), textX, pad + 20);
+
+  // Subtitle.
+  ctx.fillStyle = '#78716c';
+  ctx.font = `400 19px ${LABEL_FONT}`;
+  ctx.fillText(truncate(ctx, cardMeta(node), textMax), textX, pad + 48);
+
+  // Status row.
+  const sy = H - pad - 6;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(pad + 6, sy, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#57534e';
+  ctx.font = `500 18px ${LABEL_FONT}`;
+  ctx.fillText(node.type, pad + 20, sy + 1);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 function nodeColor(type: OkfNodeType): string {
   const { varName, fallback } = NODE_TOKEN[type] ?? NODE_TOKEN.Project;
   const value = getComputedStyle(document.documentElement)
@@ -143,21 +265,32 @@ function makeGlyphTexture(glyph: string, color: string): THREE.CanvasTexture {
 // through onNodeClick (select / link picking); hover glows in-scene. Guarded
 // so a WebGL-less environment (e.g. some CI) degrades to just the overlay
 // without crashing.
+export interface GraphControls {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  reset: () => void;
+}
+
 export function GraphScene({
   onNodeClick,
   onSelectionMove,
+  onControls,
 }: {
   onNodeClick?: (node: KnowledgeNode) => void;
   // Reports the selected node's screen position (container px) each frame so an
   // overlay panel can anchor to it and track pan/zoom — null when nothing is
   // selected or it scrolls off-frame.
   onSelectionMove?: (pos: { x: number; y: number } | null) => void;
+  // Hands the parent zoom/fit controls for an on-canvas control cluster.
+  onControls?: (controls: GraphControls | null) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const clickRef = useRef(onNodeClick);
   clickRef.current = onNodeClick;
   const moveRef = useRef(onSelectionMove);
   moveRef.current = onSelectionMove;
+  const controlsRef = useRef(onControls);
+  controlsRef.current = onControls;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -185,7 +318,21 @@ export function GraphScene({
 
     // Per-rebuild bookkeeping for interaction, animation, and disposal.
     let pickables: THREE.Mesh[] = [];
-    let halos: { sprite: THREE.Sprite; base: number; phase: number; id: string }[] = [];
+    // Level-of-detail: each node carries a rich card and a dot; the animate
+    // loop cross-fades between them by on-screen card size.
+    let lodNodes: {
+      id: string;
+      phase: number;
+      card: THREE.Sprite;
+      cardMat: THREE.SpriteMaterial;
+      halo: THREE.Sprite;
+      haloBase: number;
+      haloMat: THREE.SpriteMaterial;
+      label: THREE.Sprite;
+      labelMat: THREE.SpriteMaterial;
+      dotMats: { mat: THREE.Material; base: number }[];
+      dotObjs: THREE.Object3D[];
+    }[] = [];
     let disposables: { dispose: () => void }[] = [];
     let hoveredId: string | null = null;
 
@@ -278,12 +425,27 @@ export function GraphScene({
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
 
+    // Hand zoom/fit controls up for the on-canvas control cluster.
+    const zoomBy = (f: number) => {
+      targetZoom = Math.min(4, Math.max(0.3, targetZoom * f));
+    };
+    controlsRef.current?.({
+      zoomIn: () => zoomBy(1.2),
+      zoomOut: () => zoomBy(1 / 1.2),
+      reset: () => {
+        camera.position.x = 0;
+        camera.position.y = 0;
+        targetZoom = 1;
+        fitFrustum();
+      },
+    });
+
     const rebuild = () => {
       group.clear();
       for (const d of disposables) d.dispose();
       disposables = [];
       pickables = [];
-      halos = [];
+      lodNodes = [];
 
       const { graph, positions, selectedId, linkFromId } =
         useKnowledgeCanvas.getState();
@@ -333,67 +495,62 @@ export function GraphScene({
         group.add(line);
       }
 
-      // ── Nodes: white glass discs, type-colored rims, breathing halos ──
+      // ── Nodes: a rich card up close, a labelled dot when zoomed out ──
       graph.nodes.forEach((n, i) => {
         const p = positions[n.id];
         if (!p) return;
         const isRoot = n.id === graph.rootId;
         const isSel = n.id === selectedId;
         const isLinkFrom = n.id === linkFromId;
+        const active = isSel || isLinkFrom;
         const r = isRoot ? ROOT_RADIUS : NODE_RADIUS;
         const color = nodeColor(n.type);
         const node = new THREE.Group();
         node.position.set(p.x, p.y, 1);
 
-        // Halo — soft glow behind the disc.
+        const dotMats: { mat: THREE.Material; base: number }[] = [];
+        const dotObjs: THREE.Object3D[] = [];
+        const addDot = (obj: THREE.Object3D, mat: THREE.Material, base: number) => {
+          dotObjs.push(obj);
+          dotMats.push({ mat, base });
+          node.add(obj);
+        };
+
+        // Halo — soft glow behind the dot (fades with the dot).
         const glow = track(makeGlowTexture(color));
         const haloMat = track(
           new THREE.SpriteMaterial({
             map: glow,
             transparent: true,
-            opacity: isSel || isLinkFrom ? 0.6 : 0.38,
+            opacity: active ? 0.5 : 0.26,
             depthWrite: false,
           }),
         );
         const halo = new THREE.Sprite(haloMat);
-        const haloBase = r * (isSel || isLinkFrom ? 5 : 3.6);
+        const haloBase = r * (active ? 4.4 : 3.0);
         halo.scale.setScalar(haloBase);
         halo.position.z = -0.2;
         node.add(halo);
-        halos.push({ sprite: halo, base: haloBase, phase: i * 0.7, id: n.id });
 
         // Disc — near-white glass.
-        const discGeo = track(new THREE.CircleGeometry(r, 48));
         const discMat = track(
-          new THREE.MeshBasicMaterial({
-            color: '#ffffff',
-            transparent: true,
-            opacity: 0.94,
-          }),
+          new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.94 }),
         );
-        const disc = new THREE.Mesh(discGeo, discMat);
-        disc.userData['node'] = n;
-        node.add(disc);
-        pickables.push(disc);
+        const disc = new THREE.Mesh(track(new THREE.CircleGeometry(r, 48)), discMat);
+        addDot(disc, discMat, 0.94);
 
         // Rim — the node's type color.
-        const rimGeo = track(new THREE.RingGeometry(r, r * 1.22, 48));
         const rimMat = track(
-          new THREE.MeshBasicMaterial({
-            color,
-            transparent: true,
-            opacity: isSel ? 1 : 0.9,
-          }),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isSel ? 1 : 0.9 }),
         );
-        const rim = new THREE.Mesh(rimGeo, rimMat);
+        const rim = new THREE.Mesh(track(new THREE.RingGeometry(r, r * 1.22, 48)), rimMat);
         rim.position.z = 0.05;
-        node.add(rim);
+        addDot(rim, rimMat, isSel ? 1 : 0.9);
 
         // Glyph — the type mark, centered in the disc.
-        const glyphTex = track(makeGlyphTexture(NODE_GLYPH[n.type] ?? '•', color));
         const glyphMat = track(
           new THREE.SpriteMaterial({
-            map: glyphTex,
+            map: track(makeGlyphTexture(NODE_GLYPH[n.type] ?? '•', color)),
             transparent: true,
             depthWrite: false,
             opacity: 0.92,
@@ -402,24 +559,19 @@ export function GraphScene({
         const glyph = new THREE.Sprite(glyphMat);
         glyph.scale.setScalar(r * 1.1);
         glyph.position.z = 0.1;
-        node.add(glyph);
+        addDot(glyph, glyphMat, 0.92);
 
-        // Selection ring — a fine white outline outside the rim.
-        if (isSel || isLinkFrom) {
-          const selGeo = track(new THREE.RingGeometry(r * 1.38, r * 1.46, 48));
+        if (active) {
           const selMat = track(
-            new THREE.MeshBasicMaterial({
-              color: '#ffffff',
-              transparent: true,
-              opacity: 0.9,
-            }),
+            new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9 }),
           );
-          const sel = new THREE.Mesh(selGeo, selMat);
+          const sel = new THREE.Mesh(track(new THREE.RingGeometry(r * 1.38, r * 1.46, 48)), selMat);
           sel.position.z = 0.05;
-          node.add(sel);
+          addDot(sel, selMat, 0.9);
         }
 
-        // Label — beneath the disc.
+        // Dot-mode label — beneath the disc. Fades out early (before the card
+        // appears) so the two never overlap; tracked separately from the dot.
         const { tex, aspect } = makeLabelTexture(n.label);
         track(tex);
         const labelMat = track(
@@ -430,6 +582,41 @@ export function GraphScene({
         label.scale.set(labelH * aspect, labelH, 1);
         label.position.set(0, -(r + 0.85), 0.1);
         node.add(label);
+
+        // Rich card — shown when zoomed in.
+        const cardTex = track(makeCardTexture(n, color, NODE_GLYPH[n.type] ?? '•', active));
+        const cardMat = track(
+          new THREE.SpriteMaterial({ map: cardTex, transparent: true, opacity: 0, depthWrite: false }),
+        );
+        const card = new THREE.Sprite(cardMat);
+        card.scale.set(CARD_W, CARD_H, 1);
+        card.position.z = 0.15;
+        card.visible = false;
+        node.add(card);
+
+        // Invisible pick plane covering the card (works in both LOD modes).
+        const pickMat = track(
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false }),
+        );
+        const pick = new THREE.Mesh(track(new THREE.PlaneGeometry(CARD_W, CARD_H)), pickMat);
+        pick.position.z = 0.2;
+        pick.userData['node'] = n;
+        node.add(pick);
+        pickables.push(pick);
+
+        lodNodes.push({
+          id: n.id,
+          phase: i * 0.7,
+          card,
+          cardMat,
+          halo,
+          haloBase,
+          haloMat,
+          label,
+          labelMat,
+          dotMats,
+          dotObjs,
+        });
 
         group.add(node);
       });
@@ -465,11 +652,26 @@ export function GraphScene({
       zoom += (targetZoom - zoom) * 0.12;
       camera.zoom = zoom;
       camera.updateProjectionMatrix();
-      // Breathing halos; the hovered node glows a little brighter.
-      for (const h of halos) {
-        const hovered = h.id === hoveredId;
-        const breath = 1 + 0.05 * Math.sin(t * 1.6 + h.phase);
-        h.sprite.scale.setScalar(h.base * breath * (hovered ? 1.25 : 1));
+
+      // Level-of-detail: fade cards in as their on-screen size grows, dots out.
+      const pxPerUnit = (height / (camera.top - camera.bottom)) * camera.zoom;
+      const cardPx = CARD_H * pxPerUnit;
+      const cardT = smoothstep(72, 132, cardPx); // 0 = dot, 1 = card
+      const dotT = 1 - cardT;
+      // Labels fade out earlier than the disc so they never ghost over a card.
+      const labelT = 1 - smoothstep(34, 74, cardPx);
+      for (const nd of lodNodes) {
+        nd.cardMat.opacity = cardT * 0.99;
+        nd.card.visible = cardT > 0.02;
+        for (const d of nd.dotObjs) d.visible = dotT > 0.02;
+        for (const { mat, base } of nd.dotMats) mat.opacity = base * dotT;
+        nd.label.visible = labelT > 0.02;
+        nd.labelMat.opacity = labelT;
+        const hovered = nd.id === hoveredId;
+        const breath = 1 + 0.05 * Math.sin(t * 1.6 + nd.phase);
+        nd.halo.scale.setScalar(nd.haloBase * breath * (hovered ? 1.25 : 1));
+        nd.halo.visible = dotT > 0.02;
+        nd.haloMat.opacity = (nd.id === hoveredId ? 0.5 : 0.26) * dotT;
       }
       renderer.render(scene, camera);
 
@@ -480,12 +682,9 @@ export function GraphScene({
         projected.set(p.x, p.y, 0).project(camera);
         const x = (projected.x * 0.5 + 0.5) * width;
         const y = (-projected.y * 0.5 + 0.5) * height;
-        const r = (sel === useKnowledgeCanvas.getState().graph?.rootId
-          ? ROOT_RADIUS
-          : NODE_RADIUS);
-        // Offset by the node radius in screen px (approx via zoom & frustum).
-        const pxPerUnit = (height / (camera.top - camera.bottom)) * camera.zoom;
-        moveRef.current?.({ x, y: y - r * pxPerUnit });
+        // Offset above the card (or dot) so the panel clears it.
+        const halfH = (cardT > 0.5 ? CARD_H / 2 : NODE_RADIUS) * pxPerUnit;
+        moveRef.current?.({ x, y: y - halfH });
         lastSel = sel as string;
       } else if (lastSel) {
         lastSel = '';
@@ -498,6 +697,7 @@ export function GraphScene({
     return () => {
       cancelAnimationFrame(raf);
       unsub();
+      controlsRef.current?.(null);
       resize.disconnect();
       renderer.domElement.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('pointerdown', onDown);

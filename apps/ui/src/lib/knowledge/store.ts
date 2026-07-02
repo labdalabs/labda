@@ -25,8 +25,8 @@ interface KnowledgeCanvasState {
 // and user links decorate it but don't move nodes.
 const TREE_PREDICATES = new Set(['contains', 'cites', 'records', 'analyzes']);
 
-// Ring spacing between BFS depths.
-const RING = 4;
+// Ring spacing between BFS depths — wide enough that rich cards have room.
+const RING = 6.5;
 
 // Radial tidy layout: BFS tree from the root over the structural predicates;
 // each child gets an angular span proportional to its subtree size, placed at
