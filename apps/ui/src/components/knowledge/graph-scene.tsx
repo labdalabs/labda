@@ -9,7 +9,7 @@ import type {
   OkfPredicate,
 } from '@/lib/knowledge/types';
 
-// Node colors come from the design tokens in global.css (--node-*) so the
+// Cell colors come from the design tokens in global.css (--node-*) so the
 // scene, the legend, and the DOM dots share one source of truth. Fallbacks
 // mirror the token values for non-DOM contexts (tests).
 const NODE_TOKEN: Record<OkfNodeType, { varName: string; fallback: string }> = {
@@ -22,23 +22,21 @@ const NODE_TOKEN: Record<OkfNodeType, { varName: string; fallback: string }> = {
   Thesis: { varName: '--node-thesis', fallback: '#6366f1' },
 };
 
-// Edge accents per predicate — soft enough to sit on the sky gradient,
-// distinct enough to read the relation type at a glance.
+// Dendrite (edge) accents per predicate, tuned to glow on the dark field.
+// `fires` marks the semantic ties along which an action-potential pulse runs.
 const EDGE_STYLE: Record<
   OkfPredicate,
-  { color: string; opacity: number; dashed?: boolean }
+  { color: string; opacity: number; fires: boolean }
 > = {
-  contains: { color: '#ffffff', opacity: 0.5 },
-  cites: { color: '#2e6da4', opacity: 0.55 },
-  supports: { color: '#10b981', opacity: 0.75 },
-  contradicts: { color: '#ef4444', opacity: 0.75 },
-  records: { color: '#14b8a6', opacity: 0.6 },
-  analyzes: { color: '#f43f5e', opacity: 0.6 },
-  linked: { color: '#8b5cf6', opacity: 0.75, dashed: true },
+  contains: { color: '#7fb2d8', opacity: 0.32, fires: false },
+  cites: { color: '#5b8fc4', opacity: 0.34, fires: false },
+  records: { color: '#39c0b0', opacity: 0.38, fires: false },
+  analyzes: { color: '#f4718a', opacity: 0.4, fires: false },
+  supports: { color: '#34d399', opacity: 0.62, fires: true },
+  contradicts: { color: '#f87171', opacity: 0.62, fires: true },
+  linked: { color: '#a78bfa', opacity: 0.66, fires: true },
 };
 
-// A geometric glyph per node type, drawn in the disc so a node reads at a
-// glance without leaning on color alone. Chosen from widely-supported symbols.
 const NODE_GLYPH: Record<OkfNodeType, string> = {
   Project: '◆',
   Hypothesis: '?',
@@ -51,129 +49,28 @@ const NODE_GLYPH: Record<OkfNodeType, string> = {
 
 const LABEL_FONT =
   '"Avenir Next", "Avenir Next LT Pro", Avenir, "Nunito Sans", system-ui, sans-serif';
-const NODE_RADIUS = 0.62;
-const ROOT_RADIUS = 0.9;
+const CELL_R = 0.66;
+const ROOT_R = 1.0;
+const FOCUS_ZOOM = 2.4;
 
-// Rich card size in world units (drawn to a canvas texture). When zoomed out
-// the card cross-fades to the dot so the whole graph reads at a glance.
-const CARD_W = 5.0;
-const CARD_H = 2.6;
-
-function smoothstep(a: number, b: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
 }
 
-function withAlpha(hex: string, alpha: number): string {
+function hexRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
 }
 
-function truncate(ctx: CanvasRenderingContext2D, text: string, max: number): string {
-  if (ctx.measureText(text).width <= max) return text;
-  let s = text;
-  while (s.length > 1 && ctx.measureText(`${s}…`).width > max) s = s.slice(0, -1);
-  return `${s}…`;
-}
-
-// A short subtitle from a node's attributes (mirrors the DOM panel's nodeMeta).
-function cardMeta(node: KnowledgeNode): string {
-  try {
-    const a = JSON.parse(node.attributes) as Record<string, unknown>;
-    if (node.type === 'Reference' && typeof a.url === 'string') return a.url;
-    if (node.type === 'Notebook' && typeof a.cells === 'number')
-      return `${a.cells} cells`;
-    if (node.type === 'Protocol' && typeof a.version === 'number')
-      return `v${a.version}`;
-    if (node.type === 'Project' && typeof a.description === 'string')
-      return a.description;
-  } catch {
-    /* fall through */
-  }
-  return node.type;
-}
-
-// Draw a node as a clean white card: type glyph chip, title, subtitle, and a
-// colored status row. Returns a texture sized CARD_W×CARD_H's aspect.
-function makeCardTexture(
-  node: KnowledgeNode,
-  color: string,
-  glyph: string,
-  selected: boolean,
-): THREE.CanvasTexture {
-  const dpr = 2;
-  const W = 500;
-  const H = 260;
-  const canvas = document.createElement('canvas');
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-  ctx.scale(dpr, dpr);
-
-  const pad = 26;
-  const radius = 22;
-  const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  };
-
-  // Card body.
-  const inset = 6;
-  roundRect(inset, inset, W - inset * 2, H - inset * 2, radius);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-  ctx.lineWidth = selected ? 3 : 1.5;
-  ctx.strokeStyle = selected ? color : '#e7e5e4';
-  ctx.stroke();
-
-  // Glyph chip.
-  const chip = 54;
-  roundRect(pad, pad, chip, chip, 14);
-  ctx.fillStyle = withAlpha(color, 0.12);
-  ctx.fill();
-  ctx.fillStyle = color;
-  ctx.font = `600 ${chip * 0.52}px ${LABEL_FONT}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(glyph, pad + chip / 2, pad + chip / 2 + 1);
-
-  const textX = pad + chip + 18;
-  const textMax = W - textX - pad;
-
-  // Title.
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#1c1917';
-  ctx.font = `600 28px ${LABEL_FONT}`;
-  ctx.fillText(truncate(ctx, node.label, textMax), textX, pad + 20);
-
-  // Subtitle.
-  ctx.fillStyle = '#78716c';
-  ctx.font = `400 19px ${LABEL_FONT}`;
-  ctx.fillText(truncate(ctx, cardMeta(node), textMax), textX, pad + 48);
-
-  // Status row.
-  const sy = H - pad - 6;
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(pad + 6, sy, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#57534e';
-  ctx.font = `500 18px ${LABEL_FONT}`;
-  ctx.fillText(node.type, pad + 20, sy + 1);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
+// Darken a color toward the field — the cytoplasm interior of the membrane.
+function cytoplasm(hex: string): string {
+  const [r, g, b] = hexRgb(hex);
+  const mix = (c: number) => Math.round(c * 0.32 + 8);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
 }
 
 function nodeColor(type: OkfNodeType): string {
@@ -184,8 +81,11 @@ function nodeColor(type: OkfNodeType): string {
   return value || fallback;
 }
 
-// Soft radial glow texture for node halos.
-function makeGlowTexture(color: string): THREE.CanvasTexture {
+// Soft radial glow — a membrane halo / nucleus core depending on the stops.
+function radialTexture(
+  inner: string,
+  innerStop: number,
+): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -200,8 +100,8 @@ function makeGlowTexture(color: string): THREE.CanvasTexture {
     size / 2,
     size / 2,
   );
-  g.addColorStop(0, color);
-  g.addColorStop(0.35, color);
+  g.addColorStop(0, inner);
+  g.addColorStop(innerStop, inner);
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
@@ -210,7 +110,7 @@ function makeGlowTexture(color: string): THREE.CanvasTexture {
   return tex;
 }
 
-// Crisp white label with a soft shadow, rendered to a sprite texture.
+// Crisp light label with a soft shadow, for the dark field.
 function makeLabelTexture(text: string): {
   tex: THREE.CanvasTexture;
   aspect: number;
@@ -223,7 +123,7 @@ function makeLabelTexture(text: string): {
   if (!ctx) return { tex: new THREE.CanvasTexture(canvas), aspect: 4 };
   ctx.font = `600 ${fontPx}px ${LABEL_FONT}`;
   const metrics = ctx.measureText(label);
-  const pad = 8;
+  const pad = 10;
   const w = Math.ceil(metrics.width) + pad * 2;
   const h = fontPx + pad * 2;
   canvas.width = w * dpr;
@@ -232,16 +132,16 @@ function makeLabelTexture(text: string): {
   ctx.font = `600 ${fontPx}px ${LABEL_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(21, 40, 60, 0.55)';
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+  ctx.shadowBlur = 9;
+  ctx.fillStyle = '#eaf2fb';
   ctx.fillText(label, w / 2, h / 2);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return { tex, aspect: w / h };
 }
 
-// A crisp type glyph in the node's color, centered on a transparent square.
+// A crisp type glyph in the cell's color on a transparent square.
 function makeGlyphTexture(glyph: string, color: string): THREE.CanvasTexture {
   const size = 96;
   const canvas = document.createElement('canvas');
@@ -249,7 +149,7 @@ function makeGlyphTexture(glyph: string, color: string): THREE.CanvasTexture {
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
-  ctx.font = `600 ${size * 0.6}px ${LABEL_FONT}`;
+  ctx.font = `600 ${size * 0.58}px ${LABEL_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
@@ -259,36 +159,61 @@ function makeGlyphTexture(glyph: string, color: string): THREE.CanvasTexture {
   return tex;
 }
 
-// three.js rendering of the knowledge graph. Purely visual — it subscribes to
-// the same zustand store the DOM overlay drives, so the two stay in sync
-// (three.js ↔ React via the store). Clicking a node in the scene reports up
-// through onNodeClick (select / link picking); hover glows in-scene. Guarded
-// so a WebGL-less environment (e.g. some CI) degrades to just the overlay
-// without crashing.
 export interface GraphControls {
   zoomIn: () => void;
   zoomOut: () => void;
   reset: () => void;
 }
 
+interface Cell {
+  id: string;
+  group: THREE.Group;
+  baseScale: number;
+  phase: number;
+  halo: THREE.Sprite;
+  haloMat: THREE.SpriteMaterial;
+  nucleusMat: THREE.SpriteMaterial;
+  membraneMat: THREE.MeshBasicMaterial;
+  bodyMat: THREE.MeshBasicMaterial;
+  glyphMat: THREE.SpriteMaterial;
+  labelMat: THREE.SpriteMaterial;
+  ringMat: THREE.MeshBasicMaterial | null; // selection/link ring
+  dim: number; // animated 1 → focused-out
+  bloom: number; // animated 1 → focused-in size
+}
+
+interface Dendrite {
+  from: string;
+  to: string;
+  mat: THREE.LineBasicMaterial;
+  baseOpacity: number;
+  dim: number;
+  pulse: {
+    sprite: THREE.Sprite;
+    mat: THREE.SpriteMaterial;
+    pts: THREE.Vector3[];
+    speed: number;
+    phase: number;
+  } | null;
+}
+
+// three.js rendering of the knowledge graph as living neural tissue. Cells glow
+// and breathe; dendrites connect related cells (closer = more related, per the
+// force layout) and fire pulses along semantic ties. Clicking a cell focuses
+// it — the camera dives in, the cell blooms, its neighbours stay lit and the
+// rest of the tissue recedes. Purely visual: it subscribes to the same zustand
+// store the DOM overlay drives, so the two stay in sync. Guarded so a WebGL-less
+// environment degrades to the overlay without crashing.
 export function GraphScene({
   onNodeClick,
-  onSelectionMove,
   onControls,
 }: {
   onNodeClick?: (node: KnowledgeNode) => void;
-  // Reports the selected node's screen position (container px) each frame so an
-  // overlay panel can anchor to it and track pan/zoom — null when nothing is
-  // selected or it scrolls off-frame.
-  onSelectionMove?: (pos: { x: number; y: number } | null) => void;
-  // Hands the parent zoom/fit controls for an on-canvas control cluster.
   onControls?: (controls: GraphControls | null) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const clickRef = useRef(onNodeClick);
   clickRef.current = onNodeClick;
-  const moveRef = useRef(onSelectionMove);
-  moveRef.current = onSelectionMove;
   const controlsRef = useRef(onControls);
   controlsRef.current = onControls;
 
@@ -316,57 +241,45 @@ export function GraphScene({
     const group = new THREE.Group();
     scene.add(group);
 
-    // Per-rebuild bookkeeping for interaction, animation, and disposal.
     let pickables: THREE.Mesh[] = [];
-    // Level-of-detail: each node carries a rich card and a dot; the animate
-    // loop cross-fades between them by on-screen card size.
-    let lodNodes: {
-      id: string;
-      phase: number;
-      card: THREE.Sprite;
-      cardMat: THREE.SpriteMaterial;
-      halo: THREE.Sprite;
-      haloBase: number;
-      haloMat: THREE.SpriteMaterial;
-      label: THREE.Sprite;
-      labelMat: THREE.SpriteMaterial;
-      dotMats: { mat: THREE.Material; base: number }[];
-      dotObjs: THREE.Object3D[];
-    }[] = [];
+    let cells: Cell[] = [];
+    let dendrites: Dendrite[] = [];
     let disposables: { dispose: () => void }[] = [];
     let hoveredId: string | null = null;
 
-    // Frame the whole layout with padding; keep the container's aspect.
+    // Symmetric frustum around the origin (the layout is centered there), sized
+    // to frame the whole tissue with padding. Pan/focus then move the camera.
     const fitFrustum = () => {
       const { positions } = useKnowledgeCanvas.getState();
       const pts = Object.values(positions);
-      const pad = 3.2;
-      let minX = -6, maxX = 6, minY = -5, maxY = 5;
+      const pad = 2.6;
+      let halfW = 8;
+      let halfH = 6;
       if (pts.length) {
-        minX = Math.min(...pts.map((p) => p.x)) - pad;
-        maxX = Math.max(...pts.map((p) => p.x)) + pad;
-        minY = Math.min(...pts.map((p) => p.y)) - pad;
-        maxY = Math.max(...pts.map((p) => p.y)) + pad;
+        halfW = Math.max(...pts.map((p) => Math.abs(p.x))) + pad;
+        halfH = Math.max(...pts.map((p) => Math.abs(p.y))) + pad;
       }
       const aspect = width / height;
-      let halfW = (maxX - minX) / 2;
-      let halfH = (maxY - minY) / 2;
       if (halfW / halfH > aspect) halfH = halfW / aspect;
       else halfW = halfH * aspect;
-      const cx = (minX + maxX) / 2;
-      const cy = (minY + maxY) / 2;
-      camera.left = cx - halfW;
-      camera.right = cx + halfW;
-      camera.top = cy + halfH;
-      camera.bottom = cy - halfH;
+      camera.left = -halfW;
+      camera.right = halfW;
+      camera.top = halfH;
+      camera.bottom = -halfH;
       camera.updateProjectionMatrix();
     };
 
-    // Damped zoom + 1:1 pan.
-    let zoom = 1;
+    // Camera model: pan/zoom are targets the camera eases toward. Focus mode
+    // overrides them to dive onto the selected cell; leaving focus eases back to
+    // the prior pan.
+    let panX = 0;
+    let panY = 0;
     let targetZoom = 1;
+    let zoom = 1;
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (focused()) useKnowledgeCanvas.getState().select(null); // wheel exits focus
       targetZoom = Math.min(4, Math.max(0.3, targetZoom * (e.deltaY > 0 ? 0.9 : 1.1)));
     };
     let dragging = false;
@@ -391,6 +304,11 @@ export function GraphScene({
       return (hit?.object.userData['node'] as KnowledgeNode) ?? null;
     };
 
+    const focused = () => {
+      const s = useKnowledgeCanvas.getState();
+      return !!s.selectedId && !s.linkMode;
+    };
+
     const applyHover = (id: string | null) => {
       if (id === hoveredId) return;
       hoveredId = id;
@@ -400,10 +318,11 @@ export function GraphScene({
 
     const onMove = (e: PointerEvent) => {
       if (dragging) {
+        if (focused()) useKnowledgeCanvas.getState().select(null); // drag to explore
         const frustumW = (camera.right - camera.left) / zoom;
         const frustumH = (camera.top - camera.bottom) / zoom;
-        camera.position.x -= ((e.clientX - lastX) / width) * frustumW;
-        camera.position.y += ((e.clientY - lastY) / height) * frustumH;
+        panX -= ((e.clientX - lastX) / width) * frustumW;
+        panY += ((e.clientY - lastY) / height) * frustumH;
         moved += Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY);
         lastX = e.clientX;
         lastY = e.clientY;
@@ -417,6 +336,10 @@ export function GraphScene({
       if (wasDrag || e.target !== renderer.domElement) return;
       const node = pick(e);
       if (node) clickRef.current?.(node);
+      else if (focused()) useKnowledgeCanvas.getState().select(null); // click field = unfocus
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && focused()) useKnowledgeCanvas.getState().select(null);
     };
     renderer.domElement.style.cursor = 'grab';
     renderer.domElement.style.touchAction = 'none';
@@ -424,17 +347,19 @@ export function GraphScene({
     renderer.domElement.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('keydown', onKey);
 
-    // Hand zoom/fit controls up for the on-canvas control cluster.
     const zoomBy = (f: number) => {
+      if (focused()) useKnowledgeCanvas.getState().select(null);
       targetZoom = Math.min(4, Math.max(0.3, targetZoom * f));
     };
     controlsRef.current?.({
       zoomIn: () => zoomBy(1.2),
       zoomOut: () => zoomBy(1 / 1.2),
       reset: () => {
-        camera.position.x = 0;
-        camera.position.y = 0;
+        useKnowledgeCanvas.getState().select(null);
+        panX = 0;
+        panY = 0;
         targetZoom = 1;
         fitFrustum();
       },
@@ -445,7 +370,8 @@ export function GraphScene({
       for (const d of disposables) d.dispose();
       disposables = [];
       pickables = [];
-      lodNodes = [];
+      cells = [];
+      dendrites = [];
 
       const { graph, positions, selectedId, linkFromId } =
         useKnowledgeCanvas.getState();
@@ -456,46 +382,75 @@ export function GraphScene({
         disposables.push(d);
         return d;
       };
-
-      // ── Edges: gentle quadratic curves, colored by predicate ──
       const posOf = (id: string) =>
         positions[id] ? new THREE.Vector3(positions[id].x, positions[id].y, 0) : null;
+
+      // Cell size grows a little with connectivity — hubs are bigger somata.
+      const degree = new Map<string, number>();
       for (const e of graph.edges) {
+        degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
+        degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+      }
+
+      // ── Dendrites: glowing filaments; semantic ties carry a firing pulse ──
+      const pulseTex = track(radialTexture('rgba(233,247,255,1)', 0.25));
+      for (let i = 0; i < graph.edges.length; i++) {
+        const e = graph.edges[i];
         const a = posOf(e.from);
         const b = posOf(e.to);
         if (!a || !b) continue;
         const style = EDGE_STYLE[e.predicate] ?? EDGE_STYLE.contains;
+        // A gentle organic bow so parallel dendrites fan apart.
         const mid = a.clone().add(b).multiplyScalar(0.5);
         const dir = b.clone().sub(a);
         const normal = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
-        // Deterministic bow direction so parallel edges fan apart.
         const sign = e.from < e.to ? 1 : -1;
-        mid.add(normal.multiplyScalar(sign * dir.length() * 0.12));
+        mid.add(normal.multiplyScalar(sign * dir.length() * 0.14));
         const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
-        const geo = track(
-          new THREE.BufferGeometry().setFromPoints(curve.getPoints(32)),
-        );
+        const pts = curve.getPoints(40);
+        const geo = track(new THREE.BufferGeometry().setFromPoints(pts));
         const mat = track(
-          style.dashed
-            ? new THREE.LineDashedMaterial({
-                color: style.color,
-                transparent: true,
-                opacity: style.opacity,
-                dashSize: 0.35,
-                gapSize: 0.22,
-              })
-            : new THREE.LineBasicMaterial({
-                color: style.color,
-                transparent: true,
-                opacity: style.opacity,
-              }),
+          new THREE.LineBasicMaterial({
+            color: style.color,
+            transparent: true,
+            opacity: style.opacity,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
         );
         const line = new THREE.Line(geo, mat);
-        if (style.dashed) line.computeLineDistances();
+        line.position.z = -0.3;
         group.add(line);
+
+        let pulse: Dendrite['pulse'] = null;
+        if (style.fires) {
+          const pMat = track(
+            new THREE.SpriteMaterial({
+              map: pulseTex,
+              color: style.color,
+              transparent: true,
+              opacity: 0,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+          );
+          const sprite = new THREE.Sprite(pMat);
+          sprite.scale.setScalar(0.7);
+          sprite.position.z = -0.25;
+          group.add(sprite);
+          pulse = { sprite, mat: pMat, pts, speed: 0.16 + (i % 5) * 0.02, phase: (i * 0.37) % 1 };
+        }
+        dendrites.push({
+          from: e.from,
+          to: e.to,
+          mat,
+          baseOpacity: style.opacity,
+          dim: 1,
+          pulse,
+        });
       }
 
-      // ── Nodes: a rich card up close, a labelled dot when zoomed out ──
+      // ── Cells: halo + cytoplasm body + glowing membrane + bright nucleus ──
       graph.nodes.forEach((n, i) => {
         const p = positions[n.id];
         if (!p) return;
@@ -503,136 +458,162 @@ export function GraphScene({
         const isSel = n.id === selectedId;
         const isLinkFrom = n.id === linkFromId;
         const active = isSel || isLinkFrom;
-        const r = isRoot ? ROOT_RADIUS : NODE_RADIUS;
         const color = nodeColor(n.type);
-        const node = new THREE.Group();
-        node.position.set(p.x, p.y, 1);
+        const deg = degree.get(n.id) ?? 0;
+        const r =
+          (isRoot ? ROOT_R : CELL_R) * (1 + Math.min(0.45, deg * 0.05));
 
-        const dotMats: { mat: THREE.Material; base: number }[] = [];
-        const dotObjs: THREE.Object3D[] = [];
-        const addDot = (obj: THREE.Object3D, mat: THREE.Material, base: number) => {
-          dotObjs.push(obj);
-          dotMats.push({ mat, base });
-          node.add(obj);
-        };
+        const cell = new THREE.Group();
+        cell.position.set(p.x, p.y, 1);
 
-        // Halo — soft glow behind the dot (fades with the dot).
-        const glow = track(makeGlowTexture(color));
+        // Membrane halo — soft glow that breathes.
         const haloMat = track(
           new THREE.SpriteMaterial({
-            map: glow,
+            map: track(radialTexture(color, 0.18)),
             transparent: true,
-            opacity: active ? 0.5 : 0.26,
+            opacity: active ? 0.55 : 0.32,
+            blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),
         );
         const halo = new THREE.Sprite(haloMat);
-        const haloBase = r * (active ? 4.4 : 3.0);
-        halo.scale.setScalar(haloBase);
+        halo.scale.setScalar(r * 4.2);
         halo.position.z = -0.2;
-        node.add(halo);
+        cell.add(halo);
 
-        // Disc — near-white glass.
-        const discMat = track(
-          new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.94 }),
+        // Cytoplasm — a dark-tinted disc so the membrane and nucleus read.
+        const bodyMat = track(
+          new THREE.MeshBasicMaterial({
+            color: cytoplasm(color),
+            transparent: true,
+            opacity: 0.82,
+          }),
         );
-        const disc = new THREE.Mesh(track(new THREE.CircleGeometry(r, 48)), discMat);
-        addDot(disc, discMat, 0.94);
+        const body = new THREE.Mesh(track(new THREE.CircleGeometry(r, 48)), bodyMat);
+        cell.add(body);
 
-        // Rim — the node's type color.
-        const rimMat = track(
-          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: isSel ? 1 : 0.9 }),
+        // Membrane — the glowing rim.
+        const membraneMat = track(
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.92,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
         );
-        const rim = new THREE.Mesh(track(new THREE.RingGeometry(r, r * 1.22, 48)), rimMat);
-        rim.position.z = 0.05;
-        addDot(rim, rimMat, isSel ? 1 : 0.9);
+        const membrane = new THREE.Mesh(
+          track(new THREE.RingGeometry(r * 0.9, r * 1.08, 48)),
+          membraneMat,
+        );
+        membrane.position.z = 0.05;
+        cell.add(membrane);
 
-        // Glyph — the type mark, centered in the disc.
+        // Nucleus — a bright core.
+        const nucleusMat = track(
+          new THREE.SpriteMaterial({
+            map: track(radialTexture('rgba(240,250,255,1)', 0.2)),
+            color,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+        const nucleus = new THREE.Sprite(nucleusMat);
+        nucleus.scale.setScalar(r * 0.95);
+        nucleus.position.z = 0.08;
+        cell.add(nucleus);
+
+        // Type glyph, faint over the nucleus.
         const glyphMat = track(
           new THREE.SpriteMaterial({
-            map: track(makeGlyphTexture(NODE_GLYPH[n.type] ?? '•', color)),
+            map: track(makeGlyphTexture(NODE_GLYPH[n.type] ?? '•', '#e8f2fb')),
             transparent: true,
+            opacity: 0.72,
             depthWrite: false,
-            opacity: 0.92,
           }),
         );
         const glyph = new THREE.Sprite(glyphMat);
-        glyph.scale.setScalar(r * 1.1);
-        glyph.position.z = 0.1;
-        addDot(glyph, glyphMat, 0.92);
+        glyph.scale.setScalar(r * 0.85);
+        glyph.position.z = 0.12;
+        cell.add(glyph);
 
+        // Selection / link-source ring.
+        let ringMat: THREE.MeshBasicMaterial | null = null;
         if (active) {
-          const selMat = track(
-            new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9 }),
+          ringMat = track(
+            new THREE.MeshBasicMaterial({
+              color: isLinkFrom ? '#a78bfa' : '#e8f2fb',
+              transparent: true,
+              opacity: 0.9,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
           );
-          const sel = new THREE.Mesh(track(new THREE.RingGeometry(r * 1.38, r * 1.46, 48)), selMat);
-          sel.position.z = 0.05;
-          addDot(sel, selMat, 0.9);
+          const ring = new THREE.Mesh(
+            track(new THREE.RingGeometry(r * 1.3, r * 1.4, 48)),
+            ringMat,
+          );
+          ring.position.z = 0.06;
+          cell.add(ring);
         }
 
-        // Dot-mode label — beneath the disc. Fades out early (before the card
-        // appears) so the two never overlap; tracked separately from the dot.
+        // Label beneath the cell.
         const { tex, aspect } = makeLabelTexture(n.label);
         track(tex);
         const labelMat = track(
-          new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }),
+          new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.9, depthWrite: false }),
         );
         const label = new THREE.Sprite(labelMat);
-        const labelH = 1.05;
+        const labelH = 0.92;
         label.scale.set(labelH * aspect, labelH, 1);
-        label.position.set(0, -(r + 0.85), 0.1);
-        node.add(label);
+        label.position.set(0, -(r + 0.72), 0.1);
+        cell.add(label);
 
-        // Rich card — shown when zoomed in.
-        const cardTex = track(makeCardTexture(n, color, NODE_GLYPH[n.type] ?? '•', active));
-        const cardMat = track(
-          new THREE.SpriteMaterial({ map: cardTex, transparent: true, opacity: 0, depthWrite: false }),
-        );
-        const card = new THREE.Sprite(cardMat);
-        card.scale.set(CARD_W, CARD_H, 1);
-        card.position.z = 0.15;
-        card.visible = false;
-        node.add(card);
-
-        // Invisible pick plane covering the card (works in both LOD modes).
+        // Invisible pick disc.
         const pickMat = track(
           new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false }),
         );
-        const pick = new THREE.Mesh(track(new THREE.PlaneGeometry(CARD_W, CARD_H)), pickMat);
-        pick.position.z = 0.2;
-        pick.userData['node'] = n;
-        node.add(pick);
-        pickables.push(pick);
+        const pickMesh = new THREE.Mesh(track(new THREE.CircleGeometry(r * 1.35, 24)), pickMat);
+        pickMesh.position.z = 0.2;
+        pickMesh.userData['node'] = n;
+        cell.add(pickMesh);
+        pickables.push(pickMesh);
 
-        lodNodes.push({
+        cells.push({
           id: n.id,
+          group: cell,
+          baseScale: 1,
           phase: i * 0.7,
-          card,
-          cardMat,
           halo,
-          haloBase,
           haloMat,
-          label,
+          nucleusMat,
+          membraneMat,
+          bodyMat,
+          glyphMat,
           labelMat,
-          dotMats,
-          dotObjs,
+          ringMat,
+          dim: 1,
+          bloom: 1,
         });
 
-        group.add(node);
+        group.add(cell);
       });
     };
 
     rebuild();
-    // Rebuild only on structural/selection changes; hover animates in-place.
     let prev = useKnowledgeCanvas.getState();
     const unsub = useKnowledgeCanvas.subscribe((state) => {
       const structural =
         state.graph !== prev.graph ||
         state.positions !== prev.positions ||
-        state.selectedId !== prev.selectedId ||
         state.linkFromId !== prev.linkFromId;
+      // Selection changes only re-focus (animated), no rebuild — unless the
+      // selection ring needs (un)drawing, which we fold into a light rebuild.
+      const selectionRing = state.selectedId !== prev.selectedId;
       prev = state;
-      if (structural) rebuild();
+      if (structural || selectionRing) rebuild();
     });
 
     const resize = new ResizeObserver(() => {
@@ -645,51 +626,84 @@ export function GraphScene({
 
     let raf = 0;
     const start = performance.now();
-    const projected = new THREE.Vector3();
-    let lastSel = '';
     const animate = () => {
       const t = (performance.now() - start) / 1000;
-      zoom += (targetZoom - zoom) * 0.12;
+      const { selectedId, linkMode, positions, graph } =
+        useKnowledgeCanvas.getState();
+      const isFocused = !!selectedId && !linkMode;
+
+      // Neighbours that stay lit while focused.
+      const lit = new Set<string>();
+      if (isFocused && selectedId && graph) {
+        lit.add(selectedId);
+        for (const e of graph.edges) {
+          if (e.from === selectedId) lit.add(e.to);
+          if (e.to === selectedId) lit.add(e.from);
+        }
+      }
+
+      // Camera: dive onto the focused cell, else ease toward the user's pan.
+      const focusP = isFocused && selectedId ? positions[selectedId] : null;
+      const camTX = focusP ? focusP.x : panX;
+      const camTY = focusP ? focusP.y : panY;
+      const camTZoom = isFocused ? FOCUS_ZOOM : targetZoom;
+      camera.position.x = lerp(camera.position.x, camTX, 0.1);
+      camera.position.y = lerp(camera.position.y, camTY, 0.1);
+      zoom += (camTZoom - zoom) * 0.1;
       camera.zoom = zoom;
       camera.updateProjectionMatrix();
 
-      // Level-of-detail: fade cards in as their on-screen size grows, dots out.
-      const pxPerUnit = (height / (camera.top - camera.bottom)) * camera.zoom;
-      const cardPx = CARD_H * pxPerUnit;
-      const cardT = smoothstep(72, 132, cardPx); // 0 = dot, 1 = card
-      const dotT = 1 - cardT;
-      // Labels fade out earlier than the disc so they never ghost over a card.
-      const labelT = 1 - smoothstep(34, 74, cardPx);
-      for (const nd of lodNodes) {
-        nd.cardMat.opacity = cardT * 0.99;
-        nd.card.visible = cardT > 0.02;
-        for (const d of nd.dotObjs) d.visible = dotT > 0.02;
-        for (const { mat, base } of nd.dotMats) mat.opacity = base * dotT;
-        nd.label.visible = labelT > 0.02;
-        nd.labelMat.opacity = labelT;
-        const hovered = nd.id === hoveredId;
-        const breath = 1 + 0.05 * Math.sin(t * 1.6 + nd.phase);
-        nd.halo.scale.setScalar(nd.haloBase * breath * (hovered ? 1.25 : 1));
-        nd.halo.visible = dotT > 0.02;
-        nd.haloMat.opacity = (nd.id === hoveredId ? 0.5 : 0.26) * dotT;
-      }
-      renderer.render(scene, camera);
+      for (const c of cells) {
+        const isSel = c.id === selectedId;
+        const hovered = c.id === hoveredId;
+        const dimTarget = !isFocused ? 1 : lit.has(c.id) ? 1 : 0.12;
+        c.dim = lerp(c.dim, dimTarget, 0.12);
+        c.bloom = lerp(c.bloom, isFocused && isSel ? 1.7 : 1, 0.12);
 
-      // Anchor the inline panel to the selected node (screen px).
-      const { selectedId: sel, positions: pos } = useKnowledgeCanvas.getState();
-      const p = sel ? pos[sel] : null;
-      if (p) {
-        projected.set(p.x, p.y, 0).project(camera);
-        const x = (projected.x * 0.5 + 0.5) * width;
-        const y = (-projected.y * 0.5 + 0.5) * height;
-        // Offset above the card (or dot) so the panel clears it.
-        const halfH = (cardT > 0.5 ? CARD_H / 2 : NODE_RADIUS) * pxPerUnit;
-        moveRef.current?.({ x, y: y - halfH });
-        lastSel = sel as string;
-      } else if (lastSel) {
-        lastSel = '';
-        moveRef.current?.(null);
+        const breath = 1 + 0.035 * Math.sin(t * 1.3 + c.phase);
+        c.group.scale.setScalar(breath * c.bloom);
+
+        const emph = hovered || isSel ? 1.35 : 1;
+        c.haloMat.opacity = (isSel ? 0.6 : hovered ? 0.5 : 0.32) * c.dim;
+        c.halo.scale.setScalar(
+          (c.id === selectedId ? 4.8 : 4.2) *
+            (c.group.scale.x / c.bloom) *
+            (hovered ? 1.15 : 1),
+        );
+        c.membraneMat.opacity = 0.92 * c.dim * emph;
+        c.nucleusMat.opacity = 0.9 * c.dim * emph;
+        c.bodyMat.opacity = 0.82 * Math.max(c.dim, 0.25);
+        c.glyphMat.opacity = 0.72 * c.dim;
+        // Hide the focused cell's own in-scene label — it blooms with the cell
+        // and the dossier panel already carries the title; keep neighbour labels.
+        c.labelMat.opacity = isFocused
+          ? isSel
+            ? 0
+            : lit.has(c.id)
+              ? 1
+              : 0
+          : hovered
+            ? 1
+            : 0.85;
+        if (c.ringMat) c.ringMat.opacity = 0.9 * c.dim;
       }
+
+      for (const d of dendrites) {
+        const litEdge = !isFocused || (lit.has(d.from) && lit.has(d.to));
+        d.dim = lerp(d.dim, litEdge ? 1 : 0.06, 0.12);
+        d.mat.opacity = d.baseOpacity * d.dim * (isFocused && litEdge ? 1.5 : 1);
+        if (d.pulse) {
+          const u = (t * d.pulse.speed + d.pulse.phase) % 1;
+          const pt = d.pulse.pts[Math.min(d.pulse.pts.length - 1, Math.floor(u * (d.pulse.pts.length - 1)))];
+          d.pulse.sprite.position.set(pt.x, pt.y, -0.25);
+          // Pulse brightens in the middle of its run, fades at the ends.
+          const bright = Math.sin(u * Math.PI);
+          d.pulse.mat.opacity = bright * 0.9 * d.dim * (isFocused && litEdge ? 1.4 : 1);
+          d.pulse.sprite.scale.setScalar(0.55 + bright * 0.35);
+        }
+      }
+
+      renderer.render(scene, camera);
       raf = requestAnimationFrame(animate);
     };
     animate();
@@ -703,6 +717,7 @@ export function GraphScene({
       renderer.domElement.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('keydown', onKey);
       for (const d of disposables) d.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {

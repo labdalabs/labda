@@ -3,11 +3,12 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
-// An animated brand-gradient background with a halftone-dot field and paper
-// grain — the same family of effect as paper.design's shaders, hand-written so
-// we own it. Rendered to its own fullscreen WebGL canvas that sits behind the
-// graph scene and does NOT pan/zoom with it. Guarded so a WebGL-less
-// environment simply shows the CSS gradient underneath.
+// The dark fluorescence-microscopy field the neural tissue floats in: a deep
+// indigo ground, a slow drifting nebula of teal/violet, and faint out-of-focus
+// specks — quiet enough that the glowing cells are the whole show. Rendered to
+// its own fullscreen WebGL canvas behind the graph scene; it does NOT pan/zoom
+// with it. Guarded so a WebGL-less environment simply shows the CSS gradient
+// underneath.
 
 const VERT = /* glsl */ `
   varying vec2 vUv;
@@ -23,10 +24,11 @@ const FRAG = /* glsl */ `
   uniform float uTime;
   uniform vec2 uResolution;
 
-  // Brand palette (sRGB) — the landing-page sky→cream gradient.
-  const vec3 SKY   = vec3(0.290, 0.584, 0.800); // #4a95cc
-  const vec3 SKYLT = vec3(0.561, 0.753, 0.871); // #8fc0de
-  const vec3 CREAM = vec3(0.941, 0.910, 0.824); // #f0e8d2
+  // Dark microscopy field (sRGB): deep indigo ground with teal/violet nebula.
+  const vec3 DEEP  = vec3(0.024, 0.035, 0.078); // #060914
+  const vec3 GROUND= vec3(0.043, 0.063, 0.125); // #0b1020
+  const vec3 TEAL  = vec3(0.078, 0.298, 0.325); // #144c53
+  const vec3 VIOLET= vec3(0.157, 0.106, 0.290); // #281b4a
 
   float hash(vec2 p) {
     p = fract(p * vec2(123.34, 345.45));
@@ -59,34 +61,31 @@ const FRAG = /* glsl */ `
   void main() {
     vec2 uv = vUv;
     float aspect = uResolution.x / max(1.0, uResolution.y);
+    vec2 p = vec2((uv.x - 0.5) * aspect, uv.y - 0.5);
 
-    // Vertical brand gradient (top sky → cream at the bottom), with a gentle
-    // drifting fbm warp so the sky feels alive.
-    float warp = fbm(vec2(uv.x * 2.0, uv.y * 2.0 - uTime * 0.03)) * 0.12;
-    float t = clamp(1.0 - uv.y + warp - 0.06, 0.0, 1.0);
-    vec3 col = t < 0.5
-      ? mix(SKY, SKYLT, smoothstep(0.0, 0.5, t))
-      : mix(SKYLT, CREAM, smoothstep(0.5, 1.0, t));
+    // Deep radial ground — darkest at the edges so the tissue sits in a pool
+    // of light near the centre.
+    float rad = length(p);
+    vec3 col = mix(GROUND, DEEP, smoothstep(0.15, 0.95, rad));
 
-    // Halftone dots: a rotated screen-space grid whose dot radius grows toward
-    // the warm bottom and pulses with a slow fbm field. Soft white ink, low
-    // opacity — a printed, tactile feel.
-    float ca = cos(0.5), sa = sin(0.5);
-    vec2 rot = vec2(uv.x * aspect * ca - uv.y * sa, uv.x * aspect * sa + uv.y * ca);
-    float cells = 46.0;
-    vec2 grid = fract(rot * cells) - 0.5;
-    float field = fbm(rot * 3.0 + uTime * 0.05);
-    float radius = mix(0.05, 0.34, uv.y) * (0.6 + 0.8 * field);
-    float dot = smoothstep(radius, radius - 0.12, length(grid));
-    col = mix(col, col + vec3(1.0), dot * 0.06);
+    // Two slow, counter-drifting nebula clouds tint the field teal and violet.
+    float n1 = fbm(p * 1.6 + vec2(uTime * 0.015, uTime * 0.01));
+    float n2 = fbm(p * 2.1 - vec2(uTime * 0.012, uTime * 0.017) + 5.0);
+    col += TEAL * smoothstep(0.45, 0.95, n1) * 0.5;
+    col += VIOLET * smoothstep(0.5, 1.0, n2) * 0.45;
 
-    // Paper grain — fine multiplicative noise.
+    // Faint out-of-focus specks — a rotated grid of soft dots drifting slowly,
+    // like fluorophores just off the focal plane.
+    float ca = cos(0.4), sa = sin(0.4);
+    vec2 rot = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+    vec2 grid = fract(rot * 9.0 + vec2(0.0, uTime * 0.04)) - 0.5;
+    float twinkle = 0.6 + 0.4 * fbm(rot * 4.0 + uTime * 0.08);
+    float speck = smoothstep(0.16, 0.0, length(grid)) * twinkle;
+    col += vec3(0.30, 0.55, 0.70) * speck * 0.06;
+
+    // Fine sensor grain.
     float grain = noise(uv * uResolution.xy * 0.5 + uTime) - 0.5;
-    col += grain * 0.025;
-
-    // Soft vignette to seat the graph in the centre.
-    float vig = smoothstep(1.15, 0.35, distance(uv, vec2(0.5)));
-    col *= mix(0.94, 1.0, vig);
+    col += grain * 0.02;
 
     gl_FragColor = vec4(col, 1.0);
   }
