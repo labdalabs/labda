@@ -11,6 +11,9 @@ const inputs: GraphInputs = {
     h1: [{ referenceId: 'r1', predicate: 'contradicts', quote: 'did not increase yield' }],
   },
   protocols: [{ id: 'pr1', title: 'Assay', version: 1 }],
+  notebooks: [{ protocolId: 'pr1', title: 'Assay — notebook', cells: 2 }],
+  analyses: [{ id: 'a1', protocolId: 'pr1', name: 'Yield stats' }],
+  theses: [{ id: 't1', title: 'Yield paper draft' }],
 };
 
 const bundle = toOkfBundle(buildOkfGraph(inputs));
@@ -70,5 +73,25 @@ describe('OKF bundle (to spec)', () => {
   it('emits section index.md files for progressive disclosure', () => {
     expect(frontmatter(byPath.get('hypotheses/index.md')!)['type']).toBe('Index');
     expect(byPath.get('references/index.md')).toBeDefined();
+  });
+
+  it('emits Notebook, Analysis and Thesis concept files, cross-linked', () => {
+    const nb = byPath.get('notebooks/pr1.md')!;
+    expect(frontmatter(nb)['type']).toBe('Notebook');
+    expect(frontmatter(nb)['cells']).toBe('2');
+    expect(nb).toMatch(/\]\(\.\.\/protocols\/pr1\.md\)/);
+
+    const analysis = byPath.get('analyses/a1.md')!;
+    expect(frontmatter(analysis)['type']).toBe('Analysis');
+    expect(analysis).toMatch(/\]\(\.\.\/protocols\/pr1\.md\)/);
+
+    const thesis = byPath.get('theses/t1.md')!;
+    expect(frontmatter(thesis)['type']).toBe('Thesis');
+    expect(thesis).toMatch(/\]\(\.\.\/index\.md\)/);
+
+    // The protocol file links back to its notebook and analysis.
+    const protocol = byPath.get('protocols/pr1.md')!;
+    expect(protocol).toMatch(/\]\(\.\.\/notebooks\/pr1\.md\)/);
+    expect(protocol).toMatch(/\]\(\.\.\/analyses\/a1\.md\)/);
   });
 });

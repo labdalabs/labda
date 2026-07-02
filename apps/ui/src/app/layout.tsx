@@ -19,8 +19,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/preview.png',
-        width: 1488,
-        height: 941,
+        width: 640,
+        height: 405,
         alt: 'Labda',
       },
     ],

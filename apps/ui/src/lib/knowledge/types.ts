@@ -1,9 +1,18 @@
-export type OkfNodeType = 'Project' | 'Hypothesis' | 'Protocol' | 'Reference';
+export type OkfNodeType =
+  | 'Project'
+  | 'Hypothesis'
+  | 'Protocol'
+  | 'Reference'
+  | 'Notebook'
+  | 'Analysis'
+  | 'Thesis';
 export type OkfPredicate =
   | 'contains'
   | 'cites'
   | 'supports'
   | 'contradicts'
+  | 'records'
+  | 'analyzes'
   | 'linked';
 
 export interface KnowledgeNode {

@@ -9,6 +9,7 @@ import type { AuthenticatedUser } from '@labda/core-common';
 import { ResearchFacade } from '@labda/core-research';
 import { ProtocolFacade } from '@labda/core-protocol';
 import { CopilotFacade } from '@labda/core-copilot';
+import { AnalysisFacade } from '@labda/core-analysis';
 import {
   buildOkfGraph,
   neighbours,
@@ -18,6 +19,16 @@ import {
 import { toOkfBundle, type OkfFile } from './okf-bundle';
 
 type LinkRow = typeof knowledgeLink.$inferSelect;
+
+// Cell count of an nbformat JSON string; 0 when unparseable.
+function countNotebookCells(notebook: string): number {
+  try {
+    const parsed = JSON.parse(notebook) as { cells?: unknown[] };
+    return Array.isArray(parsed.cells) ? parsed.cells.length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 const OKF_BUCKET = 'knowledge-okf';
 const SIGNED_URL_TTL_SEC = 60 * 60;
@@ -39,6 +50,7 @@ export class KnowledgeService {
     private readonly researchFacade: ResearchFacade,
     private readonly protocolFacade: ProtocolFacade,
     private readonly copilotFacade: CopilotFacade,
+    private readonly analysisFacade: AnalysisFacade,
   ) {}
 
   // Derive the OKF graph for a Project from the current entities + grounded
@@ -76,6 +88,27 @@ export class KnowledgeService {
         }));
     }
 
+    // Notebooks — every Protocol carries an nbformat record (ADR-0024); the
+    // graph surfaces it as its own node so cross-notebook work is visible.
+    const notebooks = protocols.map((p) => ({
+      protocolId: p.id,
+      title: `${p.title} — notebook`,
+      cells: countNotebookCells(p.notebook),
+    }));
+
+    // Analyses — computational work over each Protocol's data.
+    const analyses = (
+      await Promise.all(
+        protocols.map(async (p) =>
+          (await this.analysisFacade.listAnalyses(user, p.id)).map((a) => ({
+            id: a.id,
+            protocolId: a.protocolId,
+            name: a.name,
+          })),
+        ),
+      )
+    ).flat();
+
     const links = await this.listLinks(user, projectId);
 
     return buildOkfGraph({
@@ -92,6 +125,11 @@ export class KnowledgeService {
         title: p.title,
         version: p.version,
       })),
+      notebooks,
+      analyses,
+      // Thesis is modelled in the graph (node type + OKF dir) but no
+      // authoring entity exists yet — see CONTEXT.md "Forthcoming".
+      theses: [],
       links: links.map((l) => ({
         id: l.id,
         fromNodeId: l.fromNodeId,

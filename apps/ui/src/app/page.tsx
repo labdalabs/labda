@@ -1,14 +1,8 @@
 import Image from 'next/image';
 
-const brandFont =
-  '"Avenir Next", "Avenir Next LT Pro", Avenir, "Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-
 export default function ComingSoon() {
   return (
-    <main
-      style={{ fontFamily: brandFont }}
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#4A95CC] via-[#8FC0DE] to-[#F0E8D2] px-6 py-20"
-    >
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-brand-sky via-brand-sky-light to-brand-cream px-6 py-20 font-heading">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.22] mix-blend-overlay"

@@ -13,12 +13,24 @@ import { useKnowledgeCanvas } from '@/lib/knowledge/store';
 import type { KnowledgeNode, OkfNodeType } from '@/lib/knowledge/types';
 import { GraphScene } from './graph-scene';
 
+// Node-type colors come from the --node-* design tokens (global.css) — the
+// same palette the three.js scene reads.
 const TYPE_DOT: Record<OkfNodeType, string> = {
-  Project: 'bg-[#4a95cc]',
-  Hypothesis: 'bg-[#8b5cf6]',
-  Protocol: 'bg-[#10b981]',
-  Reference: 'bg-[#f59e0b]',
+  Project: 'bg-node-project',
+  Hypothesis: 'bg-node-hypothesis',
+  Protocol: 'bg-node-protocol',
+  Reference: 'bg-node-reference',
+  Notebook: 'bg-node-notebook',
+  Analysis: 'bg-node-analysis',
+  Thesis: 'bg-node-thesis',
 };
+
+const NODE_TYPES = Object.keys(TYPE_DOT) as OkfNodeType[];
+
+// The landing page's fractal-noise grain, reused so the canvas reads as the
+// same material as the brand gradient.
+const NOISE_URI =
+  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 // Where clicking a node navigates.
 function hrefFor(node: KnowledgeNode, projectId: string): string | null {
@@ -26,9 +38,23 @@ function hrefFor(node: KnowledgeNode, projectId: string): string | null {
   switch (node.type) {
     case 'Project':
     case 'Hypothesis':
+    case 'Thesis':
       return `/app/projects/${projectId}`;
     case 'Protocol':
+    case 'Notebook':
+      // The Notebook is a Protocol's computational record — same editor.
       return `/app/projects/${projectId}/protocols/${localId}`;
+    case 'Analysis': {
+      try {
+        const protocolId =
+          (JSON.parse(node.attributes).protocolId as string) ?? '';
+        return protocolId
+          ? `/app/projects/${projectId}/protocols/${protocolId}`
+          : null;
+      } catch {
+        return null;
+      }
+    }
     case 'Reference': {
       try {
         const url = (JSON.parse(node.attributes).url as string) ?? '';
@@ -42,11 +68,14 @@ function hrefFor(node: KnowledgeNode, projectId: string): string | null {
 
 // The 2D canvas: a three.js scene (GraphScene) plus a synced DOM overlay that
 // carries interaction — select, open the underlying entity, and draw
-// Obsidian-like links between nodes. Both read/write one zustand store.
+// Obsidian-like links between nodes. Both read/write one zustand store, and
+// clicking a node inside the scene routes through the same handler as the
+// overlay list.
 export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const {
     graph,
     selectedId,
+    hoveredId,
     linkMode,
     linkFromId,
     setGraph,
@@ -113,11 +142,14 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
 
   const linkedCount =
     graph?.edges.filter((e) => e.predicate === 'linked').length ?? 0;
+  const presentTypes = NODE_TYPES.filter((t) =>
+    graph?.nodes.some((n) => n.type === t),
+  );
 
   return (
     <section className="space-y-3" data-testid="knowledge-canvas">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold">Knowledge graph</h2>
+        <h2 className="font-heading text-lg font-semibold">Knowledge graph</h2>
         <span className="text-xs text-muted-foreground">
           {graph ? `${graph.nodes.length} nodes · ${graph.edges.length} edges` : ''}
         </span>
@@ -139,12 +171,23 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
 
-      <div className="relative h-[420px] overflow-hidden rounded-md border bg-muted/10">
-        <GraphScene />
+      <div className="relative h-[480px] overflow-hidden rounded-xl border shadow-sm">
+        {/* The brand sky — same gradient as the landing page. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-b from-brand-sky via-brand-sky-light to-brand-cream"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
+          style={{ backgroundImage: NOISE_URI }}
+        />
+
+        <GraphScene onNodeClick={handleNodeClick} />
 
         {/* Synced DOM overlay — the accessible, testable interaction surface. */}
         <ul
-          className="absolute right-2 top-2 max-h-[400px] w-64 space-y-1 overflow-auto rounded-md border bg-background/90 p-2 text-sm"
+          className="absolute right-2 top-2 max-h-[calc(100%-1rem)] w-64 space-y-1 overflow-auto rounded-lg border border-white/40 bg-background/85 p-2 text-sm shadow-sm backdrop-blur"
           data-testid="graph-node-list"
         >
           {loading ? (
@@ -161,9 +204,13 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
                   data-node-type={n.type}
                   className={`flex items-center gap-2 rounded px-1 py-0.5 ${
                     selectedId === n.id ? 'bg-muted' : ''
-                  } ${isFrom ? 'ring-1 ring-primary' : ''}`}
+                  } ${hoveredId === n.id ? 'bg-muted/60' : ''} ${
+                    isFrom ? 'ring-1 ring-primary' : ''
+                  }`}
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${TYPE_DOT[n.type]}`} />
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${TYPE_DOT[n.type]}`}
+                  />
                   <button
                     type="button"
                     className="flex-1 truncate text-left"
@@ -189,6 +236,21 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
             })
           )}
         </ul>
+
+        {/* Legend — the node types present in this graph. */}
+        {presentTypes.length > 0 && (
+          <div
+            className="absolute bottom-2 left-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/40 bg-background/85 px-2.5 py-1.5 text-xs shadow-sm backdrop-blur"
+            data-testid="graph-legend"
+          >
+            {presentTypes.map((t) => (
+              <span key={t} className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${TYPE_DOT[t]}`} />
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground" data-testid="linked-count">

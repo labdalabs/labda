@@ -21,12 +21,18 @@ export interface OkfFile {
 //   references/<id>.md            (Reference — `resource:` = source URL)
 //   protocols/index.md
 //   protocols/<id>.md             (Protocol)
+//   notebooks/<id>.md             (Notebook — the computational record)
+//   analyses/<id>.md              (Analysis)
+//   theses/<id>.md                (Thesis — the write-up)
 
 const DIR: Record<OkfNode['type'], string> = {
   Project: '',
   Hypothesis: 'hypotheses',
   Protocol: 'protocols',
   Reference: 'references',
+  Notebook: 'notebooks',
+  Analysis: 'analyses',
+  Thesis: 'theses',
 };
 
 function localId(nodeId: string): string {
@@ -109,6 +115,9 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
     Hypothesis: [],
     Reference: [],
     Protocol: [],
+    Notebook: [],
+    Analysis: [],
+    Thesis: [],
   };
   for (const n of graph.nodes) {
     if (n.type in groups) groups[n.type].push(n);
@@ -170,6 +179,19 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
 
   for (const p of groups['Protocol']) {
     const path = filePath(p);
+    const notebooks = outgoing(p.id, 'records')
+      .map((e) => byId.get(e.to))
+      .filter((n): n is OkfNode => !!n);
+    const analyses = incoming(p.id, 'analyzes')
+      .map((e) => byId.get(e.from))
+      .filter((n): n is OkfNode => !!n);
+    let body = `# ${p.label}\n\nPart of ${linkTo(path, project!)}.\n`;
+    if (notebooks.length) {
+      body += `\nRecorded by ${notebooks.map((n) => linkTo(path, n)).join(', ')}.\n`;
+    }
+    if (analyses.length) {
+      body += `\nAnalyzed by ${analyses.map((a) => linkTo(path, a)).join(', ')}.\n`;
+    }
     files.push({
       path,
       content:
@@ -177,7 +199,51 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
           type: 'Protocol',
           title: p.label,
           version: p.attributes['version'],
-        }) + `# ${p.label}\n\nPart of ${linkTo(path, project!)}.\n`,
+        }) + body,
+    });
+  }
+
+  // Notebook — the computational record of its Protocol.
+  for (const nb of groups['Notebook']) {
+    const path = filePath(nb);
+    const protocol = incoming(nb.id, 'records')
+      .map((e) => byId.get(e.from))
+      .find((n): n is OkfNode => !!n);
+    let body = `# ${nb.label}\n\n`;
+    if (protocol) body += `Records ${linkTo(path, protocol)}.\n`;
+    files.push({
+      path,
+      content:
+        frontmatter({
+          type: 'Notebook',
+          title: nb.label,
+          cells: nb.attributes['cells'],
+        }) + body,
+    });
+  }
+
+  // Analysis — computational work over a Protocol's data.
+  for (const a of groups['Analysis']) {
+    const path = filePath(a);
+    const protocol = outgoing(a.id, 'analyzes')
+      .map((e) => byId.get(e.to))
+      .find((n): n is OkfNode => !!n);
+    let body = `# ${a.label}\n\n`;
+    if (protocol) body += `Analyzes ${linkTo(path, protocol)}.\n`;
+    files.push({
+      path,
+      content: frontmatter({ type: 'Analysis', title: a.label }) + body,
+    });
+  }
+
+  // Thesis — the write-up.
+  for (const t of groups['Thesis']) {
+    const path = filePath(t);
+    files.push({
+      path,
+      content:
+        frontmatter({ type: 'Thesis', title: t.label }) +
+        `# ${t.label}\n\nPart of ${linkTo(path, project!)}.\n`,
     });
   }
 
@@ -186,6 +252,9 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
     ['Hypothesis', 'hypotheses'],
     ['Reference', 'references'],
     ['Protocol', 'protocols'],
+    ['Notebook', 'notebooks'],
+    ['Analysis', 'analyses'],
+    ['Thesis', 'theses'],
   ] as const) {
     const items = groups[type];
     if (!items.length) continue;

@@ -11,7 +11,16 @@ import { resolveKernel, type KernelMode } from '@/lib/kernel';
 import type { CellOutput, KernelVariable } from '@/lib/kernel/types';
 import { CellOutputs } from './cell-output';
 import { AnalysisPanel } from './analysis-panel';
+import { PythonEditor } from './python-editor';
 import { CopilotThread } from '@/components/copilot/copilot-thread';
+
+// Kernel status chip — a colored dot + label, in semantic token colors.
+const KERNEL_CHIP: Record<KernelStatus, { dot: string; text: string }> = {
+  idle: { dot: 'bg-muted-foreground/50', text: 'text-muted-foreground' },
+  loading: { dot: 'bg-warning animate-pulse', text: 'text-muted-foreground' },
+  ready: { dot: 'bg-success', text: 'text-foreground' },
+  error: { dot: 'bg-destructive', text: 'text-destructive' },
+};
 
 // A cell with a stable local id for React keys (nbformat cells have none).
 interface EditableCell {
@@ -251,7 +260,7 @@ export function NotebookEditor({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           aria-label="Protocol title"
-          className="text-lg font-semibold"
+          className="font-heading text-lg font-semibold"
         />
         <span className="whitespace-nowrap text-xs text-muted-foreground">
           v{version}
@@ -289,7 +298,13 @@ export function NotebookEditor({
           onChange={handleImport}
           data-testid="import-input"
         />
-        <span className="ml-auto text-xs text-muted-foreground" data-testid="kernel-status">
+        <span
+          className={`ml-auto flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs ${KERNEL_CHIP[kernelStatus].text}`}
+          data-testid="kernel-status"
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${KERNEL_CHIP[kernelStatus].dot}`}
+          />
           Kernel: {kernelStatus}
         </span>
       </div>
@@ -329,79 +344,107 @@ export function NotebookEditor({
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <ol className="space-y-3" data-testid="cell-list">
-        {cells.map((c, i) => (
-          <li
-            key={c.localId}
-            className="rounded-md border bg-card"
-            data-testid="notebook-cell"
-            data-cell-type={c.cell.cell_type}
-          >
-            <div className="flex items-center justify-between border-b px-3 py-1 text-xs text-muted-foreground">
-              <span>
-                [{i + 1}] {c.cell.cell_type}
-              </span>
-              <div className="flex items-center gap-2">
-                {c.cell.cell_type === 'code' && (
+      <ol className="space-y-4" data-testid="cell-list">
+        {cells.map((c, i) => {
+          const isCode = c.cell.cell_type === 'code';
+          const isRunning = runningId === c.localId;
+          const count = isCode ? c.cell.execution_count : null;
+          return (
+            <li
+              key={c.localId}
+              className="overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-ring/40"
+              data-testid="notebook-cell"
+              data-cell-type={c.cell.cell_type}
+            >
+              <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-1.5 text-xs">
+                <span
+                  className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${
+                    isCode
+                      ? 'bg-slate-900 text-sky-300'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {isCode ? `In [${isRunning ? '*' : count ?? ' '}]` : 'markdown'}
+                </span>
+                {isRunning && (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
+                    running…
+                  </span>
+                )}
+                <div className="ml-auto flex items-center gap-1">
+                  {isCode && (
+                    <button
+                      type="button"
+                      className="rounded-md px-2 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                      onClick={() => runCell(c)}
+                      disabled={isRunning}
+                      data-testid="run-cell"
+                    >
+                      {isRunning ? 'running…' : '▶ run'}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="underline"
-                    onClick={() => runCell(c)}
-                    disabled={runningId === c.localId}
-                    data-testid="run-cell"
+                    className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => deleteCell(c.localId)}
                   >
-                    {runningId === c.localId ? 'running…' : 'run'}
+                    delete
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => deleteCell(c.localId)}
-                >
-                  delete
-                </button>
+                </div>
               </div>
-            </div>
-            <textarea
-              className={`min-h-16 w-full resize-y bg-background p-3 text-sm ${
-                c.cell.cell_type === 'code' ? 'font-mono' : ''
-              }`}
-              value={cellText(c.cell)}
-              onChange={(e) => updateCell(c.localId, e.target.value)}
-              aria-label={`${c.cell.cell_type} cell ${i + 1}`}
-            />
-            {c.cell.cell_type === 'code' && (
-              <CellOutputs outputs={(c.cell.outputs as CellOutput[]) ?? []} />
-            )}
-          </li>
-        ))}
+              {isCode ? (
+                <PythonEditor
+                  value={cellText(c.cell)}
+                  onChange={(source) => updateCell(c.localId, source)}
+                  ariaLabel={`code cell ${i + 1}`}
+                />
+              ) : (
+                <textarea
+                  className="min-h-16 w-full resize-y bg-background p-4 text-sm leading-relaxed outline-none"
+                  value={cellText(c.cell)}
+                  onChange={(e) => updateCell(c.localId, e.target.value)}
+                  aria-label={`markdown cell ${i + 1}`}
+                />
+              )}
+              {isCode && (
+                <CellOutputs
+                  outputs={(c.cell.outputs as CellOutput[]) ?? []}
+                  executionCount={count ?? null}
+                />
+              )}
+            </li>
+          );
+        })}
       </ol>
 
-      <section className="space-y-1" data-testid="variable-inspector">
-        <h2 className="text-sm font-semibold">Variables</h2>
+      <section className="space-y-2" data-testid="variable-inspector">
+        <h2 className="font-heading text-sm font-semibold">Variables</h2>
         {variables.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             No variables in the kernel yet.
           </p>
         ) : (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="pr-4">name</th>
-                <th className="pr-4">type</th>
-                <th>value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {variables.map((v) => (
-                <tr key={v.name}>
-                  <td className="pr-4 font-mono">{v.name}</td>
-                  <td className="pr-4 text-muted-foreground">{v.type}</td>
-                  <td className="font-mono">{v.repr}</td>
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">name</th>
+                  <th className="px-3 py-2 font-medium">type</th>
+                  <th className="px-3 py-2 font-medium">value</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {variables.map((v) => (
+                  <tr key={v.name} className="border-b last:border-b-0">
+                    <td className="px-3 py-1.5 font-mono font-medium">{v.name}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{v.type}</td>
+                    <td className="px-3 py-1.5 font-mono">{v.repr}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

@@ -12,6 +12,9 @@ export enum OkfNodeTypeGql {
   Hypothesis = 'Hypothesis',
   Protocol = 'Protocol',
   Reference = 'Reference',
+  Notebook = 'Notebook',
+  Analysis = 'Analysis',
+  Thesis = 'Thesis',
 }
 registerEnumType(OkfNodeTypeGql, { name: 'OkfNodeType' });
 
@@ -20,6 +23,8 @@ export enum OkfPredicateGql {
   cites = 'cites',
   supports = 'supports',
   contradicts = 'contradicts',
+  records = 'records',
+  analyzes = 'analyzes',
   linked = 'linked',
 }
 registerEnumType(OkfPredicateGql, { name: 'OkfPredicate' });
