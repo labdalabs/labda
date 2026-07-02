@@ -11,6 +11,7 @@ import { ResearchModule } from '@labda/core-research';
 import { ProtocolModule } from '@labda/core-protocol';
 import { AnalysisModule } from '@labda/core-analysis';
 import { CopilotModule } from '@labda/core-copilot';
+import { KnowledgeModule } from '@labda/core-knowledge';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { config, validate } from './configuration';
@@ -62,6 +63,7 @@ import { config, validate } from './configuration';
     ProtocolModule,
     AnalysisModule,
     CopilotModule,
+    KnowledgeModule,
   ],
   providers: [
     AppService,
