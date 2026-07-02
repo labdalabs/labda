@@ -7,6 +7,9 @@ import { Input } from '@labda/ui/components/ui/input';
 import { ApiError } from '@/lib/api/client';
 import { getProtocol, saveProtocol } from '@/lib/protocol/queries';
 import { cellText, type Notebook, type NotebookCell } from '@/lib/protocol/types';
+import { getKernel } from '@/lib/kernel/pyodide-kernel';
+import type { CellOutput, KernelVariable } from '@/lib/kernel/types';
+import { CellOutputs } from './cell-output';
 
 // A cell with a stable local id for React keys (nbformat cells have none).
 interface EditableCell {
@@ -18,6 +21,8 @@ let cellSeq = 0;
 function wrap(cell: NotebookCell): EditableCell {
   return { localId: `c${cellSeq++}`, cell };
 }
+
+type KernelStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export function NotebookEditor({
   protocolId,
@@ -34,6 +39,9 @@ export function NotebookEditor({
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [kernelStatus, setKernelStatus] = useState<KernelStatus>('idle');
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [variables, setVariables] = useState<KernelVariable[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -63,6 +71,16 @@ export function NotebookEditor({
     );
   }
 
+  function setCellOutputs(localId: string, outputs: CellOutput[]) {
+    setCells((prev) =>
+      prev.map((c) =>
+        c.localId === localId
+          ? { ...c, cell: { ...c.cell, outputs } }
+          : c,
+      ),
+    );
+  }
+
   function addCell(cellType: 'code' | 'markdown') {
     const base: NotebookCell =
       cellType === 'code'
@@ -73,6 +91,74 @@ export function NotebookEditor({
 
   function deleteCell(localId: string) {
     setCells((prev) => prev.filter((c) => c.localId !== localId));
+  }
+
+  async function ensureKernel(): Promise<boolean> {
+    setError('');
+    try {
+      setKernelStatus('loading');
+      await getKernel().ready();
+      setKernelStatus('ready');
+      return true;
+    } catch (err) {
+      setKernelStatus('error');
+      setError(err instanceof Error ? err.message : String(err));
+      return false;
+    }
+  }
+
+  async function refreshVariables() {
+    try {
+      setVariables(await getKernel().variables());
+    } catch {
+      /* ignore inspector errors */
+    }
+  }
+
+  async function runCell(target: EditableCell): Promise<void> {
+    if (target.cell.cell_type !== 'code') return;
+    if (!(await ensureKernel())) return;
+    setRunningId(target.localId);
+    const streamed: CellOutput[] = [];
+    setCellOutputs(target.localId, []);
+    try {
+      const result = await getKernel().execute(
+        cellText(target.cell),
+        (o) => {
+          streamed.push(o);
+          setCellOutputs(target.localId, [...streamed]);
+        },
+      );
+      setCellOutputs(target.localId, result.outputs);
+      setCells((prev) =>
+        prev.map((c) =>
+          c.localId === target.localId
+            ? {
+                ...c,
+                cell: {
+                  ...c.cell,
+                  outputs: result.outputs,
+                  execution_count: result.executionCount,
+                },
+              }
+            : c,
+        ),
+      );
+      await refreshVariables();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunningId(null);
+    }
+  }
+
+  async function runAll(): Promise<void> {
+    if (!(await ensureKernel())) return;
+    for (const c of cells) {
+      if (c.cell.cell_type === 'code') {
+        await runCell(c);
+      }
+    }
   }
 
   function buildNotebook(): Notebook {
@@ -161,9 +247,12 @@ export function NotebookEditor({
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={runAll}>
+          Run All
         </Button>
         <Button size="sm" variant="outline" onClick={() => addCell('code')}>
           + Code
@@ -189,6 +278,9 @@ export function NotebookEditor({
           onChange={handleImport}
           data-testid="import-input"
         />
+        <span className="ml-auto text-xs text-muted-foreground" data-testid="kernel-status">
+          Kernel: {kernelStatus}
+        </span>
       </div>
 
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
@@ -206,13 +298,26 @@ export function NotebookEditor({
               <span>
                 [{i + 1}] {c.cell.cell_type}
               </span>
-              <button
-                type="button"
-                className="underline"
-                onClick={() => deleteCell(c.localId)}
-              >
-                delete
-              </button>
+              <div className="flex items-center gap-2">
+                {c.cell.cell_type === 'code' && (
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => runCell(c)}
+                    disabled={runningId === c.localId}
+                    data-testid="run-cell"
+                  >
+                    {runningId === c.localId ? 'running…' : 'run'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => deleteCell(c.localId)}
+                >
+                  delete
+                </button>
+              </div>
             </div>
             <textarea
               className={`min-h-16 w-full resize-y bg-background p-3 text-sm ${
@@ -222,9 +327,40 @@ export function NotebookEditor({
               onChange={(e) => updateCell(c.localId, e.target.value)}
               aria-label={`${c.cell.cell_type} cell ${i + 1}`}
             />
+            {c.cell.cell_type === 'code' && (
+              <CellOutputs outputs={(c.cell.outputs as CellOutput[]) ?? []} />
+            )}
           </li>
         ))}
       </ol>
+
+      <section className="space-y-1" data-testid="variable-inspector">
+        <h2 className="text-sm font-semibold">Variables</h2>
+        {variables.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No variables in the kernel yet.
+          </p>
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-muted-foreground">
+                <th className="pr-4">name</th>
+                <th className="pr-4">type</th>
+                <th>value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variables.map((v) => (
+                <tr key={v.name}>
+                  <td className="pr-4 font-mono">{v.name}</td>
+                  <td className="pr-4 text-muted-foreground">{v.type}</td>
+                  <td className="font-mono">{v.repr}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </section>
   );
 }
