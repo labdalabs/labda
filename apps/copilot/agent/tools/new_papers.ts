@@ -1,6 +1,6 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
-import { labdaGraphql } from '#lib/labda.js';
+import { callerToken, labdaGraphql } from '#lib/labda.js';
 
 const RESULT_FIELDS = 'externalId title authors year venue url';
 
@@ -12,10 +12,11 @@ export default defineTool({
     projectId: z.string().uuid(),
     sinceYear: z.number().int().optional(),
   }),
-  async execute({ projectId, sinceYear }) {
+  async execute({ projectId, sinceYear }, ctx) {
     const data = await labdaGraphql<{ newPapers: unknown[] }>(
       `query ($projectId: ID!, $sinceYear: Int) { newPapers(projectId: $projectId, sinceYear: $sinceYear) { ${RESULT_FIELDS} } }`,
       { projectId, sinceYear: sinceYear ?? 0 },
+      callerToken(ctx),
     );
     return { papers: data.newPapers };
   },

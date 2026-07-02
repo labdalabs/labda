@@ -1,6 +1,7 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
 import {
+  callerToken,
   FINDING_FIELDS,
   labdaGraphql,
   type ChallengeFinding,
@@ -15,10 +16,11 @@ export default defineTool({
   inputSchema: z.object({
     hypothesisId: z.string().uuid().describe('The Hypothesis id to challenge.'),
   }),
-  async execute({ hypothesisId }) {
+  async execute({ hypothesisId }, ctx) {
     const data = await labdaGraphql<{ challengeHypothesis: ChallengeFinding[] }>(
       `query ($id: ID!) { challengeHypothesis(hypothesisId: $id) { ${FINDING_FIELDS} } }`,
       { id: hypothesisId },
+      callerToken(ctx),
     );
     return { findings: data.challengeHypothesis };
   },

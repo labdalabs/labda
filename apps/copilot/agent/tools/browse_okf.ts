@@ -1,6 +1,6 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
-import { labdaGraphql } from '#lib/labda.js';
+import { callerToken, labdaGraphql } from '#lib/labda.js';
 
 // Browse the OKF knowledge graph of a Project (fff-style). The antagonistic
 // agent walks nodes (Project, Hypothesis, Protocol, Reference) and typed edges
@@ -13,7 +13,7 @@ export default defineTool({
   inputSchema: z.object({
     projectId: z.string().uuid(),
   }),
-  async execute({ projectId }) {
+  async execute({ projectId }, ctx) {
     const data = await labdaGraphql<{ knowledgeGraph: unknown }>(
       `query ($projectId: ID!) {
         knowledgeGraph(projectId: $projectId) {
@@ -23,6 +23,7 @@ export default defineTool({
         }
       }`,
       { projectId },
+      callerToken(ctx),
     );
     return data.knowledgeGraph;
   },

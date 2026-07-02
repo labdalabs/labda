@@ -1,6 +1,6 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
-import { labdaGraphql } from '#lib/labda.js';
+import { callerToken, labdaGraphql } from '#lib/labda.js';
 
 export default defineTool({
   description:
@@ -16,10 +16,11 @@ export default defineTool({
     url: z.string().optional(),
     abstract: z.string().optional(),
   }),
-  async execute(input) {
+  async execute(input, ctx) {
     const data = await labdaGraphql<{ attachReference: { id: string } }>(
       `mutation ($input: AttachReferenceInput!) { attachReference(input: $input) { id title } }`,
       { input },
+      callerToken(ctx),
     );
     return data.attachReference;
   },

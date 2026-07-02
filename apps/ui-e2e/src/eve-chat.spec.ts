@@ -34,9 +34,10 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.waitForURL('**/');
 }
 
-// The EVE frontend integration: the chat posts to the agent via the /api/eve
-// proxy and streams the reply. Runs against the EVE stub (a live agent needs a
-// model credential).
+// The EVE frontend integration: the assistant-ui runtime (`useEveAgentRuntime`)
+// talks to same-origin /eve/v1/*, which the UI route handler proxies to the
+// agent, and renders the streamed reply. Runs against the EVE stub (a live
+// agent needs a model credential).
 test('research agent chat streams a reply via the EVE proxy', async ({
   page,
 }) => {
@@ -53,13 +54,13 @@ test('research agent chat streams a reply via the EVE proxy', async ({
   await page.getByTestId('open-assistant').click();
   await expect(page.getByTestId('eve-chat')).toBeVisible();
 
-  await page
-    .getByLabel('Message the research agent')
-    .fill('Challenge my hypothesis');
-  await page.getByRole('button', { name: 'Send' }).click();
+  // The assistant-ui composer is a textarea; Enter submits the turn.
+  const composer = page.getByPlaceholder(/Message the research agent/);
+  await composer.fill('Challenge my hypothesis');
+  await composer.press('Enter');
 
-  // The streamed assistant reply (from the stub) appears.
-  const assistant = page.locator('[data-testid="eve-messages"] [data-role="assistant"]');
-  await expect(assistant).toBeVisible();
-  await expect(assistant).toContainText('one Reference contradicts it');
+  // The streamed assistant reply (from the stub), rendered as markdown.
+  await expect(
+    page.getByText('one Reference contradicts it', { exact: false }),
+  ).toBeVisible();
 });

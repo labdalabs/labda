@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^4.0.4",
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
+    "@assistant-ui/eve": "^0.0.2",
     "@assistant-ui/react": "latest",
     "@assistant-ui/react-ai-sdk": "latest",
     "@assistant-ui/react-markdown": "latest",

@@ -1,6 +1,6 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
-import { labdaGraphql } from '#lib/labda.js';
+import { callerToken, labdaGraphql } from '#lib/labda.js';
 
 // Materialise the Project's OKF Knowledge Bundle to the local filesystem
 // (server default /tmp/labda/<projectId>) so the agent can initialise/browse a
@@ -13,12 +13,13 @@ export default defineTool({
   inputSchema: z.object({
     projectId: z.string().uuid(),
   }),
-  async execute({ projectId }) {
+  async execute({ projectId }, ctx) {
     const data = await labdaGraphql<{
       exportKnowledgeLocal: { dir: string; files: string[] };
     }>(
       `mutation ($projectId: ID!) { exportKnowledgeLocal(projectId: $projectId) { dir files } }`,
       { projectId },
+      callerToken(ctx),
     );
     return data.exportKnowledgeLocal;
   },

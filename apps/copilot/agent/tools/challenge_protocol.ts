@@ -1,6 +1,7 @@
 import { defineTool } from 'eve/tools';
 import { z } from 'zod';
 import {
+  callerToken,
   FINDING_FIELDS,
   labdaGraphql,
   type ChallengeFinding,
@@ -14,10 +15,11 @@ export default defineTool({
   inputSchema: z.object({
     protocolId: z.string().uuid().describe('The Protocol id to challenge.'),
   }),
-  async execute({ protocolId }) {
+  async execute({ protocolId }, ctx) {
     const data = await labdaGraphql<{ challengeProtocol: ChallengeFinding[] }>(
       `query ($id: ID!) { challengeProtocol(protocolId: $id) { ${FINDING_FIELDS} } }`,
       { id: protocolId },
+      callerToken(ctx),
     );
     return { findings: data.challengeProtocol };
   },

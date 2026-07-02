@@ -8,7 +8,7 @@ the UI (Vercel); this adds the **Jupyter kernel** and the **EVE agent**.
    browser ────▶ │ UI (Vercel)  │
                  │  Next.js     │
                  └──┬───┬───┬───┘
-      /api/nest ──▶ │   │   │ /api/eve (server-side proxy)
+      /api/nest ──▶ │   │   │ /eve/v1 (proxy, forwards user token)
                     │   │   └──────────────▶ ┌─────────────────┐
    ┌────────────────▼┐  │                    │ EVE agent       │
    │ Nest API        │  │ browser WS/REST    │ (Vercel)        │
@@ -113,17 +113,21 @@ become Vercel Cron Jobs. Env vars on the EVE Vercel project:
 |---|---|
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway key — **or** rely on project OIDC after `vercel link` (no key) |
 | `LABDA_API_URL` | the Nest API GraphQL URL, e.g. `https://<nest>.railway.app/api/graphql` |
-| `LABDA_TOKEN` | a Supabase access token the agent acts as (see limitation below) |
-| `EVE_BASIC_USER` | `labda` (or your choice) |
-| `EVE_BASIC_PASSWORD` | a strong shared secret (the UI proxy sends it) |
+| `SUPABASE_URL` | project URL — the channel verifies the caller's token here |
+| `SUPABASE_ANON_KEY` | anon key (required by `/auth/v1/user`) |
+| `LABDA_TOKEN` | optional — fallback token for unattended paths (cron schedules) only |
 
-Auth: `agent/channels/eve.ts` uses HTTP Basic in production and stays open on
-localhost for dev. The UI's `/api/eve` proxy attaches the same credential.
+Auth: `agent/channels/eve.ts` verifies the **signed-in researcher's Supabase
+token**. The UI's `/eve/v1` route handler reads that token server-side (from the
+session cookie) and forwards it as a Bearer; the channel validates it against
+`${SUPABASE_URL}/auth/v1/user` and exposes it to the tools, which then call the
+Nest API as that researcher. `localDev()` keeps `eve dev` and the e2e open on
+loopback. No shared secret (the old `EVE_BASIC_*`) is involved.
 
-> **Limitation (issue #18):** the agent currently acts as a single
-> `LABDA_TOKEN`, not the signed-in researcher. For a single-user or trusted
-> deployment that's fine; for multi-tenant, thread the per-request user token
-> into the agent before exposing it broadly.
+> **Per-user auth (issue #18, resolved):** interactive sessions act as the
+> caller — each tool call runs with the researcher's own permissions. The only
+> single-identity path left is the cron **schedules**, which run unattended and
+> fall back to `LABDA_TOKEN` if set.
 
 ## 5. UI (Vercel)
 
@@ -135,12 +139,13 @@ Env vars on the UI Vercel project:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key |
 | `NEXT_PUBLIC_DOMAIN_EVENTS_CHANNEL` | `labda:domain-events` |
-| `EVE_URL` | the EVE agent's Vercel URL (server-side; used by `/api/eve`) |
-| `EVE_BASIC_USER` / `EVE_BASIC_PASSWORD` | must match the EVE project |
+| `EVE_URL` | the EVE agent's Vercel URL (server-side; used by the `/eve/v1` proxy) |
 | `NEXT_PUBLIC_JUPYTER_URL` | optional — prefill the remote-kernel field |
 
-The API rewrites `/api/nest/*` → `NEXT_PUBLIC_API_URL` (see `next.config.js`);
-`/api/eve/*` is the server-side proxy to `EVE_URL`.
+The API rewrites `/api/nest/*` → `NEXT_PUBLIC_API_URL` (see `next.config.js`).
+`/eve/v1/*` is a route handler (`app/eve/v1/[...path]`) that proxies to `EVE_URL`,
+attaching the signed-in researcher's Supabase access token as a Bearer so the
+agent acts as that user. The chat UI (`useEveAgentRuntime`) calls it same-origin.
 
 ---
 
