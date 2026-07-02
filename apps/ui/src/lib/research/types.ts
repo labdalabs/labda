@@ -15,3 +15,27 @@ export interface Project {
   updatedAt: string;
   hypotheses?: Hypothesis[];
 }
+
+export interface LiteratureResult {
+  externalId: string;
+  title: string;
+  authors: string[];
+  year: number | null;
+  venue: string | null;
+  url: string | null;
+  abstract: string | null;
+}
+
+export interface Reference {
+  id: string;
+  hypothesisId: string;
+  source: string;
+  externalId: string;
+  title: string;
+  authors: string[];
+  year: number | null;
+  venue: string | null;
+  url: string | null;
+  abstract: string | null;
+  createdAt: string;
+}

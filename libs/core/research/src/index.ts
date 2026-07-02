@@ -7,3 +7,4 @@ export type {
   CreateProjectInput,
   AddHypothesisInput,
 } from './lib/research.models';
+export type { ReferenceDto } from './lib/literature/literature.models';

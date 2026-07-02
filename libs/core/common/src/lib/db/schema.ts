@@ -1,11 +1,18 @@
 import {
   index,
+  integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
   timestamp,
   uuid,
+  vector,
 } from 'drizzle-orm/pg-core';
+
+// Embedding dimensionality for Reference vectors. Matches the local hashing
+// EmbeddingService in libs/core/research. Change both together.
+export const REFERENCE_EMBEDDING_DIM = 384;
 
 // Example schema. Replace with your domain tables.
 //
@@ -60,4 +67,33 @@ export const hypothesis = pgTable(
     updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
   },
   (table) => [index('Hypothesis_projectId_idx').on(table.projectId)],
+);
+
+// A citable source attached to a Hypothesis, with full provenance back to the
+// literature corpus it came from (CONTEXT.md: Reference). Embedded async for
+// later semantic search / clustering.
+export const reference = pgTable(
+  'Reference',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    hypothesisId: uuid()
+      .notNull()
+      .references(() => hypothesis.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    // Provenance: which corpus and that corpus's stable id for the paper.
+    source: text().notNull().default('semantic_scholar'),
+    externalId: text().notNull(),
+    title: text().notNull(),
+    authors: jsonb().$type<string[]>().notNull().default([]),
+    year: integer(),
+    venue: text(),
+    url: text(),
+    abstract: text(),
+    // Populated asynchronously by the reference.embed pgmq worker.
+    embedding: vector({ dimensions: REFERENCE_EMBEDDING_DIM }),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('Reference_hypothesisId_idx').on(table.hypothesisId)],
 );

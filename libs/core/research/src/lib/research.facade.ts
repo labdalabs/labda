@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { ResearchService } from './research.service';
+import { LiteratureService } from './literature/literature.service';
 import type {
   AddHypothesisInput,
   CreateProjectInput,
   HypothesisDto,
   ProjectDto,
 } from './research.models';
+import type { ReferenceDto } from './literature/literature.models';
 
 // Public service-to-service surface of the research context (ADR-0005).
 // Other contexts (literature, protocol, agent) call this — never the service.
@@ -14,7 +16,10 @@ import type {
 export class ResearchFacade {
   private readonly logger = new Logger(ResearchFacade.name);
 
-  constructor(private readonly researchService: ResearchService) {}
+  constructor(
+    private readonly researchService: ResearchService,
+    private readonly literatureService: LiteratureService,
+  ) {}
 
   createProject(
     user: AuthenticatedUser,
@@ -47,5 +52,12 @@ export class ResearchFacade {
 
   getHypothesis(user: AuthenticatedUser, id: string): Promise<HypothesisDto> {
     return this.researchService.getHypothesis(user, id);
+  }
+
+  listReferences(
+    user: AuthenticatedUser,
+    hypothesisId: string,
+  ): Promise<ReferenceDto[]> {
+    return this.literatureService.listReferences(user, hypothesisId);
   }
 }

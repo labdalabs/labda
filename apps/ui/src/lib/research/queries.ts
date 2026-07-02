@@ -1,5 +1,5 @@
 import { graphql } from '@/lib/api/graphql';
-import type { Project } from './types';
+import type { LiteratureResult, Project, Reference } from './types';
 
 const PROJECT_FIELDS = `
   id
@@ -63,4 +63,72 @@ export async function addHypothesis(input: {
     { input },
   );
   return data.addHypothesis;
+}
+
+const REFERENCE_FIELDS = `
+  id
+  hypothesisId
+  source
+  externalId
+  title
+  authors
+  year
+  venue
+  url
+  abstract
+  createdAt
+`;
+
+const LITERATURE_RESULT_FIELDS = `
+  externalId
+  title
+  authors
+  year
+  venue
+  url
+  abstract
+`;
+
+export async function searchLiterature(
+  query: string,
+  limit = 10,
+): Promise<LiteratureResult[]> {
+  const data = await graphql<{ searchLiterature: LiteratureResult[] }>(
+    `query SearchLiterature($input: SearchLiteratureInput!) {
+      searchLiterature(input: $input) { ${LITERATURE_RESULT_FIELDS} }
+    }`,
+    { input: { query, limit } },
+  );
+  return data.searchLiterature;
+}
+
+export async function listReferences(
+  hypothesisId: string,
+): Promise<Reference[]> {
+  const data = await graphql<{ references: Reference[] }>(
+    `query References($hypothesisId: ID!) {
+      references(hypothesisId: $hypothesisId) { ${REFERENCE_FIELDS} }
+    }`,
+    { hypothesisId },
+  );
+  return data.references;
+}
+
+export async function attachReference(input: {
+  hypothesisId: string;
+  externalId: string;
+  title: string;
+  authors?: string[];
+  year?: number | null;
+  venue?: string | null;
+  url?: string | null;
+  abstract?: string | null;
+}): Promise<Reference> {
+  const data = await graphql<{ attachReference: Reference }>(
+    `mutation AttachReference($input: AttachReferenceInput!) {
+      attachReference(input: $input) { ${REFERENCE_FIELDS} }
+    }`,
+    { input },
+  );
+  return data.attachReference;
 }

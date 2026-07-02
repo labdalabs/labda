@@ -48,3 +48,26 @@ export class HypothesisAddedEvent extends DomainEvent<HypothesisAddedEventPayloa
     this.payload = plainToInstance(HypothesisAddedEventPayload, payload);
   }
 }
+
+// ─── ReferenceAttached ───────────────────────────────────────────────────────
+
+export class ReferenceAttachedEventPayload {
+  @IsUUID() referenceId!: string;
+  @IsUUID() hypothesisId!: string;
+  @IsString() ownerId!: string;
+  @IsString() title!: string;
+}
+
+export class ReferenceAttachedEvent extends DomainEvent<ReferenceAttachedEventPayload> {
+  static readonly type = 'ReferenceAttached';
+  readonly eventType = ReferenceAttachedEvent.type;
+
+  @ValidateNested()
+  @Type(() => ReferenceAttachedEventPayload)
+  readonly payload: ReferenceAttachedEventPayload;
+
+  constructor(payload: ReferenceAttachedEventPayload) {
+    super();
+    this.payload = plainToInstance(ReferenceAttachedEventPayload, payload);
+  }
+}

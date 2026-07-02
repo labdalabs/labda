@@ -23,6 +23,10 @@ const configSchema = z.object({
     apiKey: z.string(),
     model: z.string(),
   }),
+  semanticScholar: z.object({
+    baseUrl: z.string(),
+    apiKey: z.string().optional(),
+  }),
 });
 
 export const config = () => ({
@@ -47,6 +51,12 @@ export const config = () => ({
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+  },
+  semanticScholar: {
+    baseUrl:
+      process.env.SEMANTIC_SCHOLAR_BASE_URL ||
+      'https://api.semanticscholar.org/graph/v1',
+    apiKey: process.env.SEMANTIC_SCHOLAR_API_KEY || undefined,
   },
 });
 

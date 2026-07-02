@@ -27,9 +27,20 @@ export default defineConfig({
    * expected to already be running (`pnpm supabase start`). */
   webServer: [
     {
-      command: 'pnpm exec nx run api:serve',
-      url: 'http://localhost:3001/api',
+      // Deterministic Semantic Scholar stub so literature search e2e isn't at
+      // the mercy of the public API's rate limits.
+      command: 'node apps/ui-e2e/src/support/s2-stub.mjs',
+      url: 'http://127.0.0.1:4599/health',
       reuseExistingServer: true,
+      timeout: 30_000,
+      cwd: workspaceRoot,
+    },
+    {
+      // Point the API at the stub for the literature corpus during e2e.
+      command:
+        'SEMANTIC_SCHOLAR_BASE_URL=http://127.0.0.1:4599 pnpm exec nx run api:serve',
+      url: 'http://localhost:3001/api',
+      reuseExistingServer: false,
       timeout: 180_000,
       cwd: workspaceRoot,
     },

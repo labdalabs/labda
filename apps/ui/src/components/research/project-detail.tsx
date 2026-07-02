@@ -7,6 +7,7 @@ import { Input } from '@labda/ui/components/ui/input';
 import { ApiError } from '@/lib/api/client';
 import { addHypothesis, getProject } from '@/lib/research/queries';
 import type { Project } from '@/lib/research/types';
+import { HypothesisReferences } from './hypothesis-references';
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
@@ -116,6 +117,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                 {h.rationale && (
                   <p className="text-sm text-muted-foreground">{h.rationale}</p>
                 )}
+                <HypothesisReferences hypothesisId={h.id} />
               </li>
             ))}
           </ul>
