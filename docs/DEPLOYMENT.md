@@ -113,16 +113,16 @@ become Vercel Cron Jobs. Env vars on the EVE Vercel project:
 |---|---|
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway key — **or** rely on project OIDC after `vercel link` (no key) |
 | `LABDA_API_URL` | the Nest API GraphQL URL, e.g. `https://<nest>.railway.app/api/graphql` |
-| `SUPABASE_URL` | project URL — the channel verifies the caller's token here |
-| `SUPABASE_ANON_KEY` | anon key (required by `/auth/v1/user`) |
+| `SUPABASE_URL` | project URL — the channel verifies the caller's token against its JWKS |
 | `LABDA_TOKEN` | optional — fallback token for unattended paths (cron schedules) only |
 
 Auth: `agent/channels/eve.ts` verifies the **signed-in researcher's Supabase
 token**. The UI's `/eve/v1` route handler reads that token server-side (from the
-session cookie) and forwards it as a Bearer; the channel validates it against
-`${SUPABASE_URL}/auth/v1/user` and exposes it to the tools, which then call the
-Nest API as that researcher. `localDev()` keeps `eve dev` and the e2e open on
-loopback. No shared secret (the old `EVE_BASIC_*`) is involved.
+session cookie) and forwards it as a Bearer; the channel verifies its ES256
+signature against the project's JWKS (`${SUPABASE_URL}/auth/v1` OIDC discovery)
+and exposes it to the tools, which then call the Nest API as that researcher.
+`localDev()` keeps `eve dev` and the e2e open on loopback. No shared secret or
+anon key is involved.
 
 > **Per-user auth (issue #18, resolved):** interactive sessions act as the
 > caller — each tool call runs with the researcher's own permissions. The only

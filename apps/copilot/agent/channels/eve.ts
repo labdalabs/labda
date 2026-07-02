@@ -1,36 +1,40 @@
 import { eveChannel } from 'eve/channels/eve';
-import { extractBearerToken, localDev, type AuthFn } from 'eve/channels/auth';
+import {
+  extractBearerToken,
+  localDev,
+  verifyOidc,
+  type AuthFn,
+} from 'eve/channels/auth';
 
 // Route-auth for the EVE HTTP channel. The agent acts as the *signed-in
 // researcher*: the labda web app forwards the user's Supabase access token as a
-// Bearer (via its /eve/v1 proxy, which reads the token server-side from the
-// session cookie). We verify that token against Supabase and, on success,
-// return a session-auth context carrying the token so tools can call the labda
-// API as the caller (see `callerToken` in lib/labda.ts).
+// Bearer (its /eve/v1 proxy reads the token server-side from the session
+// cookie). We verify that token's signature against the Supabase project's
+// JWKS (OIDC discovery) and, on success, carry the raw token on the session
+// auth so tools can call the labda API as the caller (see `callerToken` in
+// lib/labda.ts). Supabase issues ES256 JWTs; verification is asymmetric, so no
+// shared secret or anon key is needed — only the project URL.
 //
 // Env (production):
-//   SUPABASE_URL        the project URL (e.g. https://<ref>.supabase.co)
-//   SUPABASE_ANON_KEY   anon apikey (required by the /auth/v1/user endpoint)
+//   SUPABASE_URL   the project URL (e.g. https://<ref>.supabase.co)
 //
 // `localDev()` keeps `eve dev` and the local e2e open on loopback hosts.
 function supabaseAuth(): AuthFn<Request> {
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, '');
-  const anonKey = process.env.SUPABASE_ANON_KEY;
+  const issuer = supabaseUrl ? `${supabaseUrl}/auth/v1` : undefined;
   return async (request) => {
     const token = extractBearerToken(request.headers.get('authorization'));
-    if (!token || !supabaseUrl || !anonKey) return null; // skip → next entry
-    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { authorization: `Bearer ${token}`, apikey: anonKey },
+    if (!token || !issuer) return null; // skip → next entry
+    const result = await verifyOidc(token, {
+      issuer,
+      audiences: ['authenticated'],
     });
-    if (!res.ok) return null; // invalid/expired token → skip (walk 401s)
-    const user = (await res.json()) as { id?: string; email?: string };
-    if (!user.id) return null;
+    if (!result.ok) return null; // bad signature/claims → skip (walk 401s)
+    // Carry the raw token so tools can call the API as this researcher; it
+    // surfaces at ctx.session.auth.current.attributes.token.
     return {
-      // Surfaces at ctx.session.auth.current.attributes in tools.
-      attributes: { token, email: user.email ?? '' },
-      authenticator: 'supabase',
-      principalId: user.id,
-      principalType: 'user',
+      ...result.sessionAuth,
+      attributes: { ...result.sessionAuth.attributes, token },
     };
   };
 }
