@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@labda/ui/components/ui/button';
@@ -23,6 +23,12 @@ export default function SignInPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isLocal, setIsLocal] = useState(false);
+
+  // Inbucket only exists for the local Supabase stack; don't mention it in prod.
+  useEffect(() => {
+    setIsLocal(window.location.hostname === 'localhost');
+  }, []);
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -63,7 +69,7 @@ export default function SignInPage() {
       setError(err.message);
       setLoading(false);
     } else {
-      router.push('/');
+      router.push('/app');
       router.refresh();
     }
   }
@@ -118,18 +124,20 @@ export default function SignInPage() {
                 {loading ? 'Sending…' : 'Send code'}
               </Button>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <p className="text-xs text-muted-foreground text-center">
-                Locally, emails appear in Inbucket at{' '}
-                <a
-                  href="http://localhost:54324"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  localhost:54324
-                </a>
-                .
-              </p>
+              {isLocal && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Locally, emails appear in Inbucket at{' '}
+                  <a
+                    href="http://localhost:54324"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline"
+                  >
+                    localhost:54324
+                  </a>
+                  .
+                </p>
+              )}
             </form>
           ) : (
             <form onSubmit={handleVerify} className="flex flex-col gap-3">

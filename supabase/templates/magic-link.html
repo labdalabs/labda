@@ -1,0 +1,16 @@
+<h2>Sign in to Labda</h2>
+
+<p>Your one-time sign-in code:</p>
+
+<h1 style="font-size: 32px; letter-spacing: 6px; font-family: monospace;">{{ .Token }}</h1>
+
+<p>Enter it in the app or window where you requested it. It expires in one hour.</p>
+
+<p>
+  In a browser you can also
+  <a href="{{ .ConfirmationURL }}">sign in with this link</a> instead.
+</p>
+
+<p style="color: #666; font-size: 12px;">
+  If you didn&rsquo;t request this email, you can safely ignore it.
+</p>

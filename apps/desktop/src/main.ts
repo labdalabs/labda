@@ -2,13 +2,14 @@ import { app, BrowserWindow, shell } from 'electron';
 import path from 'path';
 
 /**
- * URL of the labda UI the desktop shell wraps.
+ * URL of the labda UI the desktop shell wraps. Opens the workspace (/app)
+ * rather than the marketing landing page.
  * - Packaged app: production UI (override with LABDA_APP_URL)
  * - Dev (`electron .`): `pnpm nx dev ui` on http://localhost:4200
  */
 const APP_URL =
   process.env.LABDA_APP_URL ??
-  (app.isPackaged ? 'https://labda.app' : 'http://localhost:4200');
+  (app.isPackaged ? 'https://labda.app/app' : 'http://localhost:4200/app');
 const RETRY_DELAY_MS = 1500;
 
 let mainWindow: BrowserWindow | null = null;
@@ -28,6 +29,7 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     show: false,
+    backgroundColor: '#8FC0DE',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
@@ -79,7 +81,14 @@ if (!gotLock) {
     }
   });
 
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    // Packaged builds get the icon from the bundle; dev runs show the stock
+    // Electron dock icon unless we set it explicitly.
+    if (!app.isPackaged && process.platform === 'darwin') {
+      app.dock?.setIcon(path.join(__dirname, '..', 'build', 'icon.png'));
+    }
+    createWindow();
+  });
 
   // macOS: re-create the window when the dock icon is clicked and none are open.
   app.on('activate', () => {

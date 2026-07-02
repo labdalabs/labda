@@ -243,6 +243,14 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# Sign-in email for signInWithOtp: shows the 6-digit code ({{ .Token }}) as the
+# primary action so the desktop (Electron) app works, with the magic link as a
+# browser fallback. Apply to the hosted project with `supabase config push`
+# (or mirror it in Dashboard → Auth → Email Templates → Magic Link).
+[auth.email.template.magic_link]
+subject = "Your Labda sign-in code"
+content_path = "./supabase/templates/magic-link.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

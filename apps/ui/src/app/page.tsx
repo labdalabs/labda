@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function ComingSoon() {
   return (
@@ -29,7 +30,15 @@ export default function ComingSoon() {
           A sandbox for bioscience.
         </p>
 
-        <div className="mt-24 flex items-center gap-3 text-base text-white/90 md:text-lg">
+        <Link
+          href="/app"
+          className="mt-12 inline-flex items-center gap-2 rounded-full bg-white/95 px-8 py-3 text-base font-medium text-[#2A6FA8] shadow-lg transition hover:bg-white hover:shadow-xl md:text-lg"
+        >
+          Sign in
+          <span aria-hidden>→</span>
+        </Link>
+
+        <div className="mt-16 flex items-center gap-3 text-base text-white/90 md:text-lg">
           <p>Currently incubating</p>
           <span aria-hidden className="inline-flex h-5 w-5 items-center justify-center">
             <svg
