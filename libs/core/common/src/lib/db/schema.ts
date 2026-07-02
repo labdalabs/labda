@@ -138,3 +138,27 @@ export const protocolVersion = pgTable(
   },
   (table) => [index('ProtocolVersion_protocolId_idx').on(table.protocolId)],
 );
+
+// ─── analysis context (CONTEXT.md: Analysis) ────────────────────────────────
+
+// Computational work over a dataset derived from a Protocol's results:
+// descriptive calculations + a generated chart, exportable to `.xlsx`.
+export const analysis = pgTable(
+  'Analysis',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    protocolId: uuid()
+      .notNull()
+      .references(() => protocol.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    name: text().notNull(),
+    // { columns: string[], rows: number[][] }
+    inputData: jsonb().$type<Record<string, unknown>>().notNull(),
+    // Computed stats + chart spec.
+    results: jsonb().$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('Analysis_protocolId_idx').on(table.protocolId)],
+);

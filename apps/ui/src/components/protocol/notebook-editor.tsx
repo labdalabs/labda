@@ -10,6 +10,7 @@ import { cellText, type Notebook, type NotebookCell } from '@/lib/protocol/types
 import { getKernel } from '@/lib/kernel/pyodide-kernel';
 import type { CellOutput, KernelVariable } from '@/lib/kernel/types';
 import { CellOutputs } from './cell-output';
+import { AnalysisPanel } from './analysis-panel';
 
 // A cell with a stable local id for React keys (nbformat cells have none).
 interface EditableCell {
@@ -361,6 +362,8 @@ export function NotebookEditor({
           </table>
         )}
       </section>
+
+      <AnalysisPanel protocolId={protocolId} />
     </section>
   );
 }

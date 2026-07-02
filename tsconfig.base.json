@@ -21,7 +21,8 @@
       "@labda/ui/*": ["./libs/shared/client/ui/src/*"],
       "@labda/ui/server": ["./libs/shared/client/ui/src/server.ts"],
       "@labda/core-research": ["./libs/core/research/src/index.ts"],
-      "@labda/core-protocol": ["./libs/core/protocol/src/index.ts"]
+      "@labda/core-protocol": ["./libs/core/protocol/src/index.ts"],
+      "@labda/core-analysis": ["./libs/core/analysis/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
