@@ -74,7 +74,16 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <Link href="/app" className="text-sm text-muted-foreground underline">
           ← Projects
         </Link>
-        <h1 className="text-2xl font-semibold">{project.title}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">{project.title}</h1>
+          <Link
+            href={`/app/projects/${project.id}/graph`}
+            className="text-sm underline"
+            data-testid="open-graph"
+          >
+            Knowledge graph →
+          </Link>
+        </div>
         {project.description && (
           <p className="text-sm text-muted-foreground">{project.description}</p>
         )}
