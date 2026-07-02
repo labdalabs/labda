@@ -65,6 +65,16 @@ describe('LiteratureService', () => {
     });
   });
 
+  describe('newPapers', () => {
+    // The happy path (recency + not-yet-attached filtering) is verified live
+    // against a real DB + the Semantic Scholar stub in the e2e/smoke, since the
+    // where-terminated queries aren't representable with the shared mock db.
+    it('rejects a Project the user does not own', async () => {
+      db.limit.mockResolvedValueOnce([]);
+      await expect(service.newPapers(user, 'proj-x', 2020)).rejects.toBeTruthy();
+    });
+  });
+
   describe('attachReference', () => {
     it('checks hypothesis ownership, inserts, publishes, and enqueues embedding', async () => {
       const now = new Date();

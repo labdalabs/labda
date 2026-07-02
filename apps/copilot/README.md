@@ -19,17 +19,34 @@ the standard agent layer).
 
 ```
 agent/
-  agent.ts                 model + runtime config
+  agent.ts                 model + runtime config (Vercel AI Gateway)
   instructions.md          the antagonistic-copilot system prompt
   lib/labda.ts             GraphQL client for the labda API
-  tools/
-    challenge_hypothesis.ts        -> challengeHypothesis(hypothesisId)
+  tools/                   each file is a tool; the filename is the tool name
+    # research flow
+    start_project.ts               -> createProject
+    formulate_hypothesis.ts        -> addHypothesis
+    search_papers.ts               -> searchLiterature
+    attach_paper.ts                -> attachReference
+    new_papers.ts                  -> newPapers (recent, not-yet-attached)
+    # challenge (grounded)
+    challenge_hypothesis.ts        -> challengeHypothesis
     find_contradicting_evidence.ts -> contradictions only
-    challenge_protocol.ts          -> challengeProtocol(protocolId)
+    challenge_protocol.ts          -> challengeProtocol
+    # knowledge (OKF / fff)
+    browse_okf.ts                  -> knowledgeGraph (walk the graph)
+    init_okf_local.ts              -> exportKnowledgeLocal (/tmp/labda copy)
+  schedules/
+    daily-paper-digest.md          cron 09:00 UTC — new-paper digest
+  evals/                           tool-call evals (start-project, find-papers, …)
 ```
 
-Each file in `tools/` becomes a tool the model can call; the filename is the
-tool name.
+Every tool calls labda's grounded engine over GraphQL, so the agent can only act
+on real data — no vibes. The daily schedule runs the new-paper digest (flags
+papers that support/contradict a Hypothesis, or that failed to publish).
+Channels: the built-in EVE HTTP channel powers the in-product chat (#14); add
+`agent/channels/*` (Slack/Discord/Telegram/…) to message the researcher
+directly.
 
 ## Run it
 

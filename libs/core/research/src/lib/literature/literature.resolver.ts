@@ -1,4 +1,4 @@
-import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { CurrentUser } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { LiteratureService } from './literature.service';
@@ -19,6 +19,16 @@ export class LiteratureResolver {
     @Args('input') input: SearchLiteratureInput,
   ): Promise<LiteratureResult[]> {
     return this.literatureService.searchLiterature(user, input);
+  }
+
+  @Query(() => [LiteratureResult], { name: 'newPapers' })
+  async newPapers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('projectId', { type: () => ID }) projectId: string,
+    @Args('sinceYear', { type: () => Int, nullable: true, defaultValue: 0 })
+    sinceYear: number,
+  ): Promise<LiteratureResult[]> {
+    return this.literatureService.newPapers(user, projectId, sinceYear);
   }
 
   @Query(() => [Reference], { name: 'references' })

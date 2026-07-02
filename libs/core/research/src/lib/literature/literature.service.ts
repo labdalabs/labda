@@ -4,13 +4,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DB_CONNECTION,
   EventBusService,
   QueueService,
   hypothesis,
+  project,
   reference,
 } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
@@ -45,6 +46,59 @@ export class LiteratureService {
     input: SearchLiteratureInput,
   ): Promise<LiteratureHit[]> {
     return this.semanticScholar.search(input.query, input.limit ?? 10);
+  }
+
+  // Daily-digest data (issue #18): recent papers matching a Project's
+  // Hypotheses, published in/after `sinceYear`, excluding already-attached
+  // References. Owner-scoped.
+  async newPapers(
+    user: AuthenticatedUser,
+    projectId: string,
+    sinceYear: number,
+  ): Promise<LiteratureHit[]> {
+    const [owned] = await this.db
+      .select({ id: project.id })
+      .from(project)
+      .where(and(eq(project.id, projectId), eq(project.ownerId, user.id)))
+      .limit(1);
+    if (!owned) throw new NotFoundException('Project not found');
+
+    const hyps = await this.db
+      .select({ id: hypothesis.id, statement: hypothesis.statement })
+      .from(hypothesis)
+      .where(eq(hypothesis.projectId, projectId));
+
+    const attached = new Set(
+      (
+        await this.db
+          .select({ externalId: reference.externalId })
+          .from(reference)
+          .innerJoin(hypothesis, eq(reference.hypothesisId, hypothesis.id))
+          .where(eq(hypothesis.projectId, projectId))
+      ).map((r) => r.externalId),
+    );
+
+    const seen = new Set<string>();
+    const out: LiteratureHit[] = [];
+    for (const h of hyps) {
+      let hits: LiteratureHit[] = [];
+      try {
+        hits = await this.semanticScholar.search(h.statement, 5);
+      } catch (err) {
+        this.logger.warn(`newPapers: search failed for ${h.id}: ${err}`);
+      }
+      for (const hit of hits) {
+        if (
+          (hit.year ?? 0) >= sinceYear &&
+          !attached.has(hit.externalId) &&
+          !seen.has(hit.externalId)
+        ) {
+          seen.add(hit.externalId);
+          out.push(hit);
+        }
+      }
+    }
+    return out;
   }
 
   async attachReference(
