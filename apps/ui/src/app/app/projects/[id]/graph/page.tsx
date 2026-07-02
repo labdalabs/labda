@@ -16,14 +16,19 @@ export default async function GraphPage({
 
   const { id } = await params;
   return (
-    <section className="mx-auto max-w-4xl space-y-4 p-8">
-      <Link
-        href={`/app/projects/${id}`}
-        className="text-sm text-muted-foreground underline"
-      >
-        ← Back to Project
-      </Link>
-      <KnowledgeCanvas projectId={id} />
-    </section>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b px-4 py-2.5">
+        <Link
+          href={`/app/projects/${id}`}
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ← Back to Project
+        </Link>
+        <span className="text-sm font-medium">Knowledge graph</span>
+      </div>
+      <div className="relative flex-1">
+        <KnowledgeCanvas projectId={id} />
+      </div>
+    </div>
   );
 }

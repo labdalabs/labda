@@ -60,24 +60,11 @@ export function ProjectsView({
 
   return (
     <section className="mx-auto max-w-3xl space-y-8 p-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Projects</h1>
-          <p className="text-sm text-muted-foreground">{email}</p>
-        </div>
-        {authenticated ? (
-          <form method="POST" action="/auth/sign-out">
-            <Button type="submit" variant="outline" size="sm">
-              Sign out
-            </Button>
-          </form>
-        ) : (
-          <Link href="/auth/sign-in">
-            <Button variant="outline" size="sm">
-              Sign in
-            </Button>
-          </Link>
-        )}
+      <header>
+        <h1 className="font-heading text-2xl font-semibold">Projects</h1>
+        <p className="text-sm text-muted-foreground">
+          {authenticated ? email : 'Browsing Labda'}
+        </p>
       </header>
 
       {!authenticated && (

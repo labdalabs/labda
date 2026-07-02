@@ -22,9 +22,9 @@ const KIND_LABEL: Record<ChallengeFinding['kind'], string> = {
 
 const KIND_CLASS: Record<ChallengeFinding['kind'], string> = {
   CONTRADICTS: 'border-destructive/50 bg-destructive/5',
-  SUPPORTS: 'border-emerald-500/40 bg-emerald-500/5',
-  LOGIC_GAP: 'border-amber-500/40 bg-amber-500/5',
-  MISSING_STEP: 'border-amber-500/40 bg-amber-500/5',
+  SUPPORTS: 'border-success/40 bg-success/5',
+  LOGIC_GAP: 'border-warning/40 bg-warning/5',
+  MISSING_STEP: 'border-warning/40 bg-warning/5',
 };
 
 // The antagonistic copilot thread: challenges a Hypothesis or Protocol and

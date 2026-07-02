@@ -9,13 +9,18 @@ export type OkfNodeType =
   | 'Project'
   | 'Hypothesis'
   | 'Protocol'
-  | 'Reference';
+  | 'Reference'
+  | 'Notebook' // the computational record (Jupyter) of a Protocol
+  | 'Analysis' // computational work over a Protocol's data
+  | 'Thesis'; // the write-up (Report → Preprint → Paper); forthcoming entity
 
 export type OkfPredicate =
-  | 'contains' // Project → Hypothesis / Protocol
+  | 'contains' // Project → Hypothesis / Protocol / Thesis
   | 'cites' // Hypothesis → Reference
   | 'supports' // Reference → Hypothesis (grounded stance)
   | 'contradicts' // Reference → Hypothesis (grounded stance)
+  | 'records' // Protocol → Notebook (the notebook records the run)
+  | 'analyzes' // Analysis → Protocol (work over its data)
   | 'linked'; // user-drawn link between any two nodes (Obsidian-like)
 
 export interface OkfNode {
@@ -53,6 +58,13 @@ export interface GraphInputs {
     { referenceId: string; predicate: 'supports' | 'contradicts'; quote?: string }[]
   >;
   protocols: { id: string; title: string; version: number }[];
+  // Jupyter notebooks — the computational record of a Protocol (ADR-0024).
+  notebooks?: { protocolId: string; title: string; cells: number }[];
+  // Computational work over a Protocol's data.
+  analyses?: { id: string; protocolId: string; name: string }[];
+  // Write-ups (Report → Preprint → Paper). No authoring entity exists yet;
+  // the graph is ready for them the moment one does.
+  theses?: { id: string; title: string }[];
   // User-drawn links between existing node ids (Obsidian-like).
   links?: { id: string; fromNodeId: string; toNodeId: string; label: string | null }[];
 }
@@ -114,6 +126,41 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
       attributes: { version: p.version },
     });
     addEdge(projectNodeId, pId, 'contains');
+  }
+
+  // Notebooks — one per Protocol that has a computational record.
+  for (const nb of input.notebooks ?? []) {
+    const pId = `protocol:${nb.protocolId}`;
+    if (!seenNodes.has(pId)) continue;
+    const nbId = `notebook:${nb.protocolId}`;
+    addNode({
+      id: nbId,
+      type: 'Notebook',
+      label: nb.title,
+      attributes: { cells: nb.cells, protocolId: nb.protocolId },
+    });
+    addEdge(pId, nbId, 'records');
+  }
+
+  // Analyses — computational work over a Protocol's data.
+  for (const a of input.analyses ?? []) {
+    const pId = `protocol:${a.protocolId}`;
+    if (!seenNodes.has(pId)) continue;
+    const aId = `analysis:${a.id}`;
+    addNode({
+      id: aId,
+      type: 'Analysis',
+      label: a.name,
+      attributes: { protocolId: a.protocolId },
+    });
+    addEdge(aId, pId, 'analyzes');
+  }
+
+  // Theses — write-ups belonging to the Project.
+  for (const t of input.theses ?? []) {
+    const tId = `thesis:${t.id}`;
+    addNode({ id: tId, type: 'Thesis', label: t.title, attributes: {} });
+    addEdge(projectNodeId, tId, 'contains');
   }
 
   // User-drawn links — only between nodes that exist in this graph.

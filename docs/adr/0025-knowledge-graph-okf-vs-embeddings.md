@@ -23,10 +23,15 @@ them.** The two are complementary:
 - **Embeddings** (literature context): similarity search / clustering over
   Reference text. Unchanged.
 - **OKF graph** (new `knowledge` context): explicit typed nodes (Project,
-  Hypothesis, Protocol, Reference) and typed edges (`contains`, `cites`,
-  `supports`, `contradicts`). The `supports`/`contradicts` edges are the
-  **grounded** copilot stances (ADR from #10), so the graph carries evidence,
-  not vibes.
+  Hypothesis, Protocol, Reference, plus **Notebook**, **Analysis**, and
+  **Thesis** so the graph spans the whole research record — the Jupyter
+  notebook that records a Protocol, the Analyses over its data, and the
+  write-up) and typed edges (`contains`, `cites`, `supports`, `contradicts`,
+  `records` (Protocol → Notebook), `analyzes` (Analysis → Protocol)). The
+  `supports`/`contradicts` edges are the **grounded** copilot stances (ADR from
+  #10), so the graph carries evidence, not vibes. Thesis is modelled (node type
+  + OKF `theses/` bundle dir) ahead of its authoring entity — see CONTEXT.md
+  "Forthcoming"; it stays empty until a Report/Preprint/Paper entity exists.
 
 The v0 graph is **derived on read** from the existing facades (research,
 protocol, copilot) — no separate node/edge tables to keep in sync, so the graph

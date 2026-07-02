@@ -71,4 +71,55 @@ describe('okf', () => {
     });
     expect(g.nodes.filter((n) => n.id === 'protocol:pr1')).toHaveLength(1);
   });
+
+  it('surfaces Notebook, Analysis and Thesis nodes with typed edges', () => {
+    const g = buildOkfGraph({
+      ...inputs,
+      notebooks: [{ protocolId: 'pr1', title: 'Assay — notebook', cells: 3 }],
+      analyses: [{ id: 'a1', protocolId: 'pr1', name: 'Yield stats' }],
+      theses: [{ id: 't1', title: 'Yield paper draft' }],
+    });
+
+    const nb = g.nodes.find((n) => n.id === 'notebook:pr1');
+    expect(nb?.type).toBe('Notebook');
+    expect(nb?.attributes['cells']).toBe(3);
+    expect(
+      g.edges.some(
+        (e) =>
+          e.from === 'protocol:pr1' &&
+          e.to === 'notebook:pr1' &&
+          e.predicate === 'records',
+      ),
+    ).toBe(true);
+
+    expect(g.nodes.find((n) => n.id === 'analysis:a1')?.type).toBe('Analysis');
+    expect(
+      g.edges.some(
+        (e) =>
+          e.from === 'analysis:a1' &&
+          e.to === 'protocol:pr1' &&
+          e.predicate === 'analyzes',
+      ),
+    ).toBe(true);
+
+    expect(g.nodes.find((n) => n.id === 'thesis:t1')?.type).toBe('Thesis');
+    expect(
+      g.edges.some(
+        (e) =>
+          e.from === 'project:p1' &&
+          e.to === 'thesis:t1' &&
+          e.predicate === 'contains',
+      ),
+    ).toBe(true);
+  });
+
+  it('skips notebooks and analyses whose protocol is not in the graph', () => {
+    const g = buildOkfGraph({
+      ...inputs,
+      notebooks: [{ protocolId: 'ghost', title: 'Orphan', cells: 1 }],
+      analyses: [{ id: 'a2', protocolId: 'ghost', name: 'Orphan stats' }],
+    });
+    expect(g.nodes.some((n) => n.id === 'notebook:ghost')).toBe(false);
+    expect(g.nodes.some((n) => n.id === 'analysis:a2')).toBe(false);
+  });
 });

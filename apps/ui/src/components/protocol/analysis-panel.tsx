@@ -20,18 +20,20 @@ const SAMPLE = JSON.stringify(
 function BarChart({ results }: { results: AnalysisResults }) {
   const max = Math.max(1, ...results.chart.values.map((v) => Math.abs(v)));
   return (
-    <div className="space-y-1" data-testid="analysis-chart">
-      <p className="text-xs font-semibold">{results.chart.title}</p>
+    <div className="space-y-1.5" data-testid="analysis-chart">
+      <p className="font-heading text-xs font-semibold">{results.chart.title}</p>
       {results.chart.categories.map((cat, i) => (
         <div key={cat} className="flex items-center gap-2 text-xs">
-          <span className="w-20 shrink-0 truncate">{cat}</span>
-          <div className="h-3 flex-1 bg-muted/40">
+          <span className="w-20 shrink-0 truncate text-muted-foreground">
+            {cat}
+          </span>
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted/50">
             <div
-              className="h-3 bg-[#4A95CC]"
+              className="h-full rounded-full bg-gradient-to-r from-brand-sky to-brand-sky-light transition-[width] duration-500"
               style={{ width: `${(Math.abs(results.chart.values[i]) / max) * 100}%` }}
             />
           </div>
-          <span className="w-12 shrink-0 text-right font-mono">
+          <span className="w-12 shrink-0 text-right font-mono tabular-nums">
             {results.chart.values[i]}
           </span>
         </div>
@@ -95,9 +97,9 @@ export function AnalysisPanel({ protocolId }: { protocolId: string }) {
 
   return (
     <section className="space-y-3" data-testid="analysis-panel">
-      <h2 className="text-lg font-semibold">Analysis</h2>
+      <h2 className="font-heading text-lg font-semibold">Analysis</h2>
 
-      <form onSubmit={handleRun} className="space-y-2 rounded-md border bg-card p-4">
+      <form onSubmit={handleRun} className="space-y-2 rounded-xl border bg-card p-4 shadow-sm">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -133,9 +135,9 @@ export function AnalysisPanel({ protocolId }: { protocolId: string }) {
           {analyses.map((a) => {
             const results = JSON.parse(a.results) as AnalysisResults;
             return (
-              <li key={a.id} className="space-y-2 rounded-md border bg-card p-4">
+              <li key={a.id} className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">{a.name}</span>
+                  <span className="font-heading font-medium">{a.name}</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -146,30 +148,32 @@ export function AnalysisPanel({ protocolId }: { protocolId: string }) {
                   </Button>
                 </div>
 
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-left text-muted-foreground">
-                      <th className="pr-3">column</th>
-                      <th className="pr-3">mean</th>
-                      <th className="pr-3">median</th>
-                      <th className="pr-3">min</th>
-                      <th className="pr-3">max</th>
-                      <th className="pr-3">std</th>
-                    </tr>
-                  </thead>
-                  <tbody data-testid="analysis-stats">
-                    {results.stats.map((s) => (
-                      <tr key={s.column}>
-                        <td className="pr-3 font-mono">{s.column}</td>
-                        <td className="pr-3">{s.mean}</td>
-                        <td className="pr-3">{s.median}</td>
-                        <td className="pr-3">{s.min}</td>
-                        <td className="pr-3">{s.max}</td>
-                        <td className="pr-3">{s.std}</td>
+                <div className="overflow-hidden rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <th className="px-3 py-2 font-medium">column</th>
+                        <th className="px-3 py-2 font-medium">mean</th>
+                        <th className="px-3 py-2 font-medium">median</th>
+                        <th className="px-3 py-2 font-medium">min</th>
+                        <th className="px-3 py-2 font-medium">max</th>
+                        <th className="px-3 py-2 font-medium">std</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody data-testid="analysis-stats">
+                      {results.stats.map((s) => (
+                        <tr key={s.column} className="border-b tabular-nums last:border-b-0">
+                          <td className="px-3 py-1.5 font-mono font-medium">{s.column}</td>
+                          <td className="px-3 py-1.5">{s.mean}</td>
+                          <td className="px-3 py-1.5">{s.median}</td>
+                          <td className="px-3 py-1.5">{s.min}</td>
+                          <td className="px-3 py-1.5">{s.max}</td>
+                          <td className="px-3 py-1.5">{s.std}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
                 <BarChart results={results} />
 
