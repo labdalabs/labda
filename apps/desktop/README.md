@@ -4,8 +4,9 @@ macOS desktop app for labda — a thin [Electron](https://www.electronjs.org/) s
 
 The shell loads the UI over HTTP (it does not bundle it), so the desktop app always shows the same app as the browser:
 
-- **Dev:** defaults to `http://localhost:4200` (`pnpm nx dev ui`)
-- **Prod:** set `LABDA_APP_URL` to the deployed UI origin
+- **Packaged app:** defaults to the production UI at `https://labda.app`
+- **Dev (`electron .` / `nx serve desktop`):** defaults to `http://localhost:4200` (`pnpm nx dev ui`)
+- `LABDA_APP_URL` overrides either default
 
 ## Develop
 
@@ -23,10 +24,16 @@ If the UI isn't up yet the window retries automatically until it is.
 
 ```bash
 pnpm nx run desktop:package        # .dmg + .zip for arm64 + x64 in apps/desktop/release/
-LABDA_APP_URL=https://labda.example.com pnpm nx run desktop:package   # point at a deployed UI
 ```
 
 Builds are unsigned by default. To sign/notarize, provide the usual `CSC_*` / `APPLE_*` env vars electron-builder expects.
+
+### Installing an unsigned build
+
+Until builds are notarized with an Apple Developer ID, macOS Gatekeeper will refuse the downloaded app with "Labda is damaged / cannot be opened". Recipients have two options after dragging `Labda.app` to Applications:
+
+- Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** after the first blocked launch, or
+- clear the quarantine flag: `xattr -dr com.apple.quarantine /Applications/Labda.app`
 
 ## Notes
 

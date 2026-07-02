@@ -3,10 +3,12 @@ import path from 'path';
 
 /**
  * URL of the labda UI the desktop shell wraps.
- * - Dev: `pnpm nx dev ui` serves it on http://localhost:4200
- * - Prod: set LABDA_APP_URL to the deployed UI origin when packaging/launching
+ * - Packaged app: production UI (override with LABDA_APP_URL)
+ * - Dev (`electron .`): `pnpm nx dev ui` on http://localhost:4200
  */
-const APP_URL = process.env.LABDA_APP_URL ?? 'http://localhost:4200';
+const APP_URL =
+  process.env.LABDA_APP_URL ??
+  (app.isPackaged ? 'https://labda.app' : 'http://localhost:4200');
 const RETRY_DELAY_MS = 1500;
 
 let mainWindow: BrowserWindow | null = null;
