@@ -27,7 +27,16 @@ export default function SignInPage() {
     const supabase = createClient();
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        // Make the email's magic link return to THIS origin (localhost in dev,
+        // the deployed domain in prod) rather than a fixed Site URL. The URL
+        // must be allow-listed in Supabase → Auth → URL Configuration.
+        emailRedirectTo:
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/auth/callback`
+            : undefined,
+      },
     });
     if (err) setError(err.message);
     else setSent(true);
