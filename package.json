@@ -4,6 +4,10 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.4",
     "@apollo/server": "^5.5.1",
