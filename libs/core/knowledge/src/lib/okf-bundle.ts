@@ -212,7 +212,7 @@ function yamlScalar(s: string): string {
   // trailing space, or a `#` comment start. A bare URL like http://x/1 is a
   // valid plain scalar and stays unquoted.
   const needsQuote =
-    /^[\s\-?:,\[\]{}#&*!|>'"%@`]/.test(s) ||
+    /^[\s\-?:,[\]{}#&*!|>'"%@`]/.test(s) ||
     /: /.test(s) ||
     /:$/.test(s) ||
     / #/.test(s) ||
