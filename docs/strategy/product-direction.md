@@ -1,8 +1,9 @@
 # Product Direction — the L0 surface: "VS Code for science"
 
-> **Companion to** [Vision & Strategy](./vision-and-strategy.md) (§3 wedge tool) and [Competitor Teardown](./competitor-teardown.md).
+> **Companion to** [Vision & Strategy](./vision-and-strategy.md) (§3 wedge tool), [Competitor Teardown](./competitor-teardown.md), [PDR-001 — Build Approach](./pdr-001-l0-build-approach.md), [PDR-002 — Architecture & Stack](./pdr-002-architecture-and-stack.md), and [Instrument Integrations](./instrument-integrations.md).
 > **Status:** Internal product/UX direction. Working name **"Labda Studio"** (placeholder).
-> **Last updated:** 2026-06-07
+> **⚠️ Build-approach update:** §3 ("fork VS Code") is **superseded by [PDR-001](./pdr-001-l0-build-approach.md)** — v0 ships as a **VS Code plugin** (a migratable webview app), not a fork. The product vision below stands; only the *build mechanism* changed.
+> **Last updated:** 2026-06-17
 
 ---
 
@@ -10,7 +11,7 @@
 
 **A beautiful, AI-native, Jupyter-native workspace that streamlines computational research — and quietly becomes the ELN and the on-ramp to the marketplace.**
 
-Think **"Cursor / VS Code for science."** We fork VS Code (it's already Jupyter-native and forkable — the exact playbook Cursor used), make it genuinely beautiful and science-focused, build the AI copilot in, and layer the ELN, provenance, sharing, and marketplace on top.
+Think **"Cursor / VS Code for science."** We ship as a **VS Code plugin** (a self-contained webview app wrapped in an extension — see [PDR-001](./pdr-001-l0-build-approach.md); the original "fork" plan in §3 is superseded), make it genuinely beautiful and science-focused, build the AI copilot in, and layer the ELN, provenance, sharing, and marketplace on top.
 
 The notebook is the center of gravity. It's simultaneously:
 - the **workspace** where comp biologists already do their work,
@@ -31,9 +32,11 @@ One surface, one data model, the whole loop.
 
 ---
 
-## 3. Build approach — fork VS Code
+## 3. Build approach — ~~fork VS Code~~ → **superseded by [PDR-001](./pdr-001-l0-build-approach.md)**
 
-**Decision: fork VS Code (Code-OSS), the Cursor playbook.** Don't build a notebook from scratch; don't settle for a plain JupyterLab extension.
+> **⚠️ Superseded (2026-06-17).** This section is kept for the record. The decision is now: **ship a VS Code plugin, not a fork** — built as a migratable webview app, with the stack in [PDR-002](./pdr-002-architecture-and-stack.md). The Jupyter-native and zero-friction-adoption logic below still holds; only "fork" → "plugin" changed. Read [PDR-001](./pdr-001-l0-build-approach.md) for the live decision.
+
+**~~Decision: fork VS Code (Code-OSS), the Cursor playbook.~~** Don't build a notebook from scratch; don't settle for a plain JupyterLab extension.
 
 - **What we get for free:** first-class Jupyter notebook support, a mature/loved editor, the extension model, terminal, git, remote/SSH, debugging, and a UX comp biologists already know.
 - **What we add (our value-add layer):** the in-editor AI copilot, finest-grain provenance + versioning capture, Benchling-style context panels, embedded literature/verification widgets, and the fork/share/marketplace hooks.
@@ -60,6 +63,22 @@ The differentiation isn't features — it's a *streamlined, beautiful* surface t
 - **Finest-grain provenance, surfaced inline** (Elicit's click→exact-source-sentence). Every copilot-suggested param/method/citation links to its source and is verifiable. This is the antidote to the hallucination complaints dogging every AI research tool.
 - **Embedded literature/verification widgets:** a **consensus/replication "Meter"** over methodological choices (Consensus), a **supports/contradicts/replicated** signal on methods (Scite stance classification), built on the **Semantic Scholar** free API as the literature backbone (don't rebuild the corpus).
 - **Fork / diff / share notebooks** with citable references (protocols.io) — the academic growth loop *and* the marketplace/commons primitive none of the incumbents have.
+
+---
+
+## 4a. The canvas — a visual workflow builder (+ instrument ingestion)
+
+Alongside the notebook, a second surface: a **node-based, no-code workflow builder** (ComfyUI / n8n-style, engine in [PDR-002](./pdr-002-architecture-and-stack.md) §5), purpose-built for bioscience. It's where the [instrument integrations](./instrument-integrations.md) come alive and where the loudest user pain — **tool-hopping** — gets solved:
+
+```
+[Microscope / Bio-Rad image] → [Parser] → [Group/label datasets]
+   → [YOLO cell-count + viability] → [Generate graphs] → [Export to Excel]
+```
+
+- **Ingest from every source, one place.** GraphPad/Prism-style viz from open libs (matplotlib/seaborn) with a nicer UI; Bio-Rad/qPCR/Leica LAS X data pulled in; native Excel in/out. The full landscape and our angle on each tool live in **[Instrument Integrations](./instrument-integrations.md)**.
+- **Block ↔ code.** Double-clicking a node opens the code behind it; the canvas and the notebook are two lenses on the same work (how they interconvert is an open design question).
+- **Doubles as a whiteboard** for notes and collaborative reasoning, versioned for multiplayer.
+- **Notebook stays the protocol record;** the canvas is the data-flow/automation builder over it.
 
 ---
 
@@ -148,13 +167,14 @@ Wet-lab terms (Assay, Reagent, Sample) stay parked until the wet-lab tier (§6 o
 
 ## 10. Open considerations / next decisions
 
-1. **MVP scope.** Do we ship the full forked IDE in v0, or a focused slice (copilot + notebook + a few panels) first? Lean toward a **focused slice of the forked surface** — the differentiated workspace is the point, but we don't build every panel/widget before launch. (Ties to strategy §14 sequencing.)
-2. **Compute model** — local vs hosted kernels (see §3). Decide alongside marketplace productization.
-3. **Licensing review** — confirm the Code-OSS + Open VSX + open-language-server path clears us of Microsoft's proprietary components (see §3).
-4. **Naming/branding** — "Labda Studio" is a placeholder.
+1. **MVP scope.** Ship a **focused slice of the plugin** (per [PDR-001](./pdr-001-l0-build-approach.md) §9 v0 build order: project/hypothesis → literature-search-welded-to-hypothesis → protocol editor → analyze output), not every panel/widget. (Ties to strategy §14 sequencing.)
+2. **Compute model** — local vs hosted vs remote-cluster kernels, entangled with the remote-SSH must-have ([PDR-001](./pdr-001-l0-build-approach.md) §8, [PDR-002](./pdr-002-architecture-and-stack.md) §8).
+3. **Licensing review** — Open VSX + open-language-server path for the plugin's Python/Jupyter tooling; and the core/premium license choice for the open-core repo ([PDR-002](./pdr-002-architecture-and-stack.md) §4).
+4. **Notebook ↔ canvas** interaction model (§4a).
+5. **Naming/branding** — "Labda Studio" is a placeholder.
 
 ---
 
 ## 11. What we steal / the whitespace (pointers)
 
-The full **features-to-borrow list** and the **confirmed whitespace** (no one connects to paid experts, no one productizes process data, on-demand paid cross-lab verification is unbuilt, structured verified-outcome data is unowned) live in **[Competitor Teardown](./competitor-teardown.md)** — already committed. This doc is where those findings converge into a single product surface: **a beautiful, AI-native, Jupyter-native, forked-VS-Code workspace that streamlines comp-bio research and becomes the ELN, the data moat, and the marketplace on-ramp.**
+The full **features-to-borrow list** and the **confirmed whitespace** (no one connects to paid experts, no one productizes process data, on-demand paid cross-lab verification is unbuilt, structured verified-outcome data is unowned) live in **[Competitor Teardown](./competitor-teardown.md)** — already committed. This doc is where those findings converge into a single product surface: **a beautiful, AI-native, Jupyter-native, plugin-based VS Code workspace (+ a bioscience workflow canvas) that streamlines comp-bio research and becomes the ELN, the data moat, and the marketplace on-ramp.**
