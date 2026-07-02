@@ -29,6 +29,7 @@
     "@rekog/mcp-nest": "^1.9.3",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.0",
+    "@vercel/connect": "^0.3.0",
     "ai": "^7.0.9",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",

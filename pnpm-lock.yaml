@@ -390,6 +390,9 @@ importers:
 
   apps/copilot:
     dependencies:
+      '@vercel/connect':
+        specifier: ^0.2.2
+        version: 0.2.10(@ai-sdk/mcp@1.0.56(zod@4.4.3))(ai@7.0.9(zod@4.4.3))(eve@0.17.1(@opentelemetry/api@1.9.1)(ai@7.0.9(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.1)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.21.0))(jiti@2.7.0)(lru-cache@11.5.1)(next@16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(sass@1.100.0))(react@19.2.6)(rollup@4.60.4)(vite@8.0.14(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.100.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.0)))
       ai:
         specifier: ^7.0.0
         version: 7.0.9(zod@4.4.3)
@@ -5892,6 +5895,26 @@ packages:
   '@vercel/cli-exec@1.0.0':
     resolution: {integrity: sha512-kQF8LGie/Hbdq9/psJxLE7owRTcqMQMhgybU04gCeR7cbQAr5t8OrjefDNColJv1QSSucFt4pLwRiARVmlOnug==}
     engines: {node: '>= 18'}
+
+  '@vercel/connect@0.2.10':
+    resolution: {integrity: sha512-EdYVqw76l0RAnmulzu48AqC+OJ6xOCxMgog5iSDNipaY4WeOgKopkhmeyDUNGRe0gDhm4XypRWMVUc3bI0M53Q==}
+    peerDependencies:
+      '@ai-sdk/mcp': ^1 || ^2
+      '@auth/core': '>=0.37.0'
+      ai: ^6 || ^7.0.0-beta.0
+      better-auth: '>=1.5.0'
+      eve: '>=0.13.7'
+    peerDependenciesMeta:
+      '@ai-sdk/mcp':
+        optional: true
+      '@auth/core':
+        optional: true
+      ai:
+        optional: true
+      better-auth:
+        optional: true
+      eve:
+        optional: true
 
   '@vercel/connect@0.3.0':
     resolution: {integrity: sha512-616ymI1SioUBU/IfEHHUb67SJtCTc+rr5Cf/iDLnQMiOMiC3osgXigk/rky9Ic/QdG4Bj9i14IKDIf5dVVYEXg==}
@@ -18363,6 +18386,14 @@ snapshots:
   '@vercel/cli-exec@1.0.0':
     dependencies:
       execa: 5.1.1
+
+  '@vercel/connect@0.2.10(@ai-sdk/mcp@1.0.56(zod@4.4.3))(ai@7.0.9(zod@4.4.3))(eve@0.17.1(@opentelemetry/api@1.9.1)(ai@7.0.9(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.1)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.21.0))(jiti@2.7.0)(lru-cache@11.5.1)(next@16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(sass@1.100.0))(react@19.2.6)(rollup@4.60.4)(vite@8.0.14(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.100.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.0)))':
+    dependencies:
+      '@vercel/oidc': 3.7.1
+    optionalDependencies:
+      '@ai-sdk/mcp': 1.0.56(zod@4.4.3)
+      ai: 7.0.9(zod@4.4.3)
+      eve: 0.17.1(@opentelemetry/api@1.9.1)(ai@7.0.9(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.1)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.21.0))(jiti@2.7.0)(lru-cache@11.5.1)(next@16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(sass@1.100.0))(react@19.2.6)(rollup@4.60.4)(vite@8.0.14(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.100.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.0))
 
   '@vercel/connect@0.3.0(@ai-sdk/mcp@1.0.56(zod@4.4.3))(ai@7.0.9(zod@4.4.3))(eve@0.17.1(@opentelemetry/api@1.9.1)(ai@7.0.9(zod@4.4.3))(dotenv@17.4.1)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(pg@8.21.0))(jiti@2.7.0)(lru-cache@11.5.1)(next@16.1.7(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(sass@1.100.0))(react@19.2.6)(rollup@4.60.4)(vite@8.0.14(@types/node@20.19.9)(esbuild@0.28.0)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.100.0)(sass@1.100.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.0)))':
     dependencies:
