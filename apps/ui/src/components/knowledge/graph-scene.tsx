@@ -178,6 +178,7 @@ interface Cell {
   glyphMat: THREE.SpriteMaterial;
   labelMat: THREE.SpriteMaterial;
   ringMat: THREE.MeshBasicMaterial | null; // selection/link ring
+  arborMats: THREE.LineBasicMaterial[]; // branching dendrite tendrils
   dim: number; // animated 1 → focused-out
   bloom: number; // animated 1 → focused-in size
 }
@@ -276,6 +277,7 @@ export function GraphScene({
     let panY = 0;
     let targetZoom = 1;
     let zoom = 1;
+    let driftAmp = 1; // ambient drift strength; eases to 0 while focused
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -450,6 +452,22 @@ export function GraphScene({
         });
       }
 
+      // Directions from each cell toward its neighbours — dendrites root along
+      // these, so the arbor reaches toward what the cell is connected to.
+      const neighborDirs = new Map<string, number[]>();
+      const pushDir = (id: string, ang: number) => {
+        const list = neighborDirs.get(id) ?? [];
+        list.push(ang);
+        neighborDirs.set(id, list);
+      };
+      for (const e of graph.edges) {
+        const pa = positions[e.from];
+        const pb = positions[e.to];
+        if (!pa || !pb) continue;
+        pushDir(e.from, Math.atan2(pb.y - pa.y, pb.x - pa.x));
+        pushDir(e.to, Math.atan2(pa.y - pb.y, pa.x - pb.x));
+      }
+
       // ── Cells: halo + cytoplasm body + glowing membrane + bright nucleus ──
       graph.nodes.forEach((n, i) => {
         const p = positions[n.id];
@@ -525,6 +543,76 @@ export function GraphScene({
         nucleus.position.z = 0.08;
         cell.add(nucleus);
 
+        // Branching dendrite arbor — tendrils sprout from the membrane, mostly
+        // toward neighbours, and fork once into finer branches that fade at the
+        // tips (vertex colour → black under additive blending). This gives each
+        // soma a bushy, neuronal silhouette.
+        const arborMats: THREE.LineBasicMaterial[] = [];
+        const col3 = new THREE.Color(color);
+        const hash = (k: number) => {
+          const s = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453;
+          return s - Math.floor(s);
+        };
+        const addTendril = (
+          ax: number,
+          ay: number,
+          angle: number,
+          len: number,
+          bow: number,
+          fork: boolean,
+        ) => {
+          const N = 10;
+          const pts: THREE.Vector3[] = [];
+          const cols: number[] = [];
+          const nx = Math.cos(angle);
+          const ny = Math.sin(angle);
+          const ox = -ny;
+          const oy = nx;
+          for (let s = 0; s <= N; s++) {
+            const u = s / N;
+            const wob = bow * Math.sin(u * Math.PI);
+            pts.push(new THREE.Vector3(ax + nx * len * u + ox * wob, ay + ny * len * u + oy * wob, -0.28));
+            const fade = 1 - u;
+            cols.push(col3.r * fade, col3.g * fade, col3.b * fade);
+          }
+          const geo = track(new THREE.BufferGeometry().setFromPoints(pts));
+          geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+          const mat = track(
+            new THREE.LineBasicMaterial({
+              vertexColors: true,
+              transparent: true,
+              opacity: 0.5,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+          );
+          cell.add(new THREE.Line(geo, mat));
+          arborMats.push(mat);
+          if (fork) {
+            const ex = ax + nx * len;
+            const ey = ay + ny * len;
+            const spread = 0.45 + hash(len) * 0.3;
+            addTendril(ex, ey, angle + spread, len * 0.6, bow * 0.6, false);
+            addTendril(ex, ey, angle - spread, len * 0.62, -bow * 0.5, false);
+          }
+        };
+        // Neighbour directions first (capped), then free spines to fill it out.
+        const dirs = (neighborDirs.get(n.id) ?? []).slice(0, 6);
+        for (let k = dirs.length; k < Math.min(7, Math.max(4, dirs.length + 2)); k++) {
+          dirs.push(k * 2.399 + i * 0.7);
+        }
+        dirs.forEach((ang, k) => {
+          const a = ang + (hash(k) - 0.5) * 0.3;
+          addTendril(
+            Math.cos(a) * r * 0.95,
+            Math.sin(a) * r * 0.95,
+            a,
+            r * (1.5 + hash(k + 9) * 0.7),
+            r * 0.32 * (hash(k + 3) < 0.5 ? 1 : -1),
+            true,
+          );
+        });
+
         // Type glyph, faint over the nucleus.
         const glyphMat = track(
           new THREE.SpriteMaterial({
@@ -594,6 +682,7 @@ export function GraphScene({
           glyphMat,
           labelMat,
           ringMat,
+          arborMats,
           dim: 1,
           bloom: 1,
         });
@@ -642,6 +731,13 @@ export function GraphScene({
         }
       }
 
+      // Ambient drift: the whole tissue sways slowly, like a field under the
+      // microscope — then stills when a cell is focused so attention can land.
+      driftAmp = lerp(driftAmp, isFocused ? 0 : 1, 0.05);
+      group.position.x = driftAmp * (Math.sin(t * 0.11) * 0.5 + Math.sin(t * 0.07 + 1.3) * 0.3);
+      group.position.y = driftAmp * (Math.cos(t * 0.09) * 0.45 + Math.sin(t * 0.13 + 2.1) * 0.22);
+      group.rotation.z = driftAmp * 0.02 * Math.sin(t * 0.05);
+
       // Camera: dive onto the focused cell, else ease toward the user's pan.
       const focusP = isFocused && selectedId ? positions[selectedId] : null;
       const camTX = focusP ? focusP.x : panX;
@@ -686,6 +782,8 @@ export function GraphScene({
             ? 1
             : 0.85;
         if (c.ringMat) c.ringMat.opacity = 0.9 * c.dim;
+        const arborOp = 0.5 * c.dim * (hovered || isSel ? 1.4 : 1);
+        for (const m of c.arborMats) m.opacity = arborOp;
       }
 
       for (const d of dendrites) {
