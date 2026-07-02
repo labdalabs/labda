@@ -16,7 +16,7 @@ export default async function GraphPage({
 
   const { id } = await params;
   return (
-    <section className="mx-auto max-w-4xl space-y-4 p-8">
+    <section className="space-y-4 p-6">
       <Link
         href={`/app/projects/${id}`}
         className="text-sm text-muted-foreground underline"

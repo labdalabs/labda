@@ -37,10 +37,22 @@ const EDGE_STYLE: Record<
   linked: { color: '#8b5cf6', opacity: 0.75, dashed: true },
 };
 
+// A geometric glyph per node type, drawn in the disc so a node reads at a
+// glance without leaning on color alone. Chosen from widely-supported symbols.
+const NODE_GLYPH: Record<OkfNodeType, string> = {
+  Project: '◆',
+  Hypothesis: '?',
+  Protocol: '⬡',
+  Reference: '❝',
+  Notebook: '▤',
+  Analysis: '▲',
+  Thesis: '¶',
+};
+
 const LABEL_FONT =
   '"Avenir Next", "Avenir Next LT Pro", Avenir, "Nunito Sans", system-ui, sans-serif';
-const NODE_RADIUS = 0.55;
-const ROOT_RADIUS = 0.8;
+const NODE_RADIUS = 0.62;
+const ROOT_RADIUS = 0.9;
 
 function nodeColor(type: OkfNodeType): string {
   const { varName, fallback } = NODE_TOKEN[type] ?? NODE_TOKEN.Project;
@@ -107,6 +119,24 @@ function makeLabelTexture(text: string): {
   return { tex, aspect: w / h };
 }
 
+// A crisp type glyph in the node's color, centered on a transparent square.
+function makeGlyphTexture(glyph: string, color: string): THREE.CanvasTexture {
+  const size = 96;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  ctx.font = `600 ${size * 0.6}px ${LABEL_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(glyph, size / 2, size / 2 + size * 0.03);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // three.js rendering of the knowledge graph. Purely visual — it subscribes to
 // the same zustand store the DOM overlay drives, so the two stay in sync
 // (three.js ↔ React via the store). Clicking a node in the scene reports up
@@ -115,12 +145,19 @@ function makeLabelTexture(text: string): {
 // without crashing.
 export function GraphScene({
   onNodeClick,
+  onSelectionMove,
 }: {
   onNodeClick?: (node: KnowledgeNode) => void;
+  // Reports the selected node's screen position (container px) each frame so an
+  // overlay panel can anchor to it and track pan/zoom — null when nothing is
+  // selected or it scrolls off-frame.
+  onSelectionMove?: (pos: { x: number; y: number } | null) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const clickRef = useRef(onNodeClick);
   clickRef.current = onNodeClick;
+  const moveRef = useRef(onSelectionMove);
+  moveRef.current = onSelectionMove;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -352,6 +389,21 @@ export function GraphScene({
         rim.position.z = 0.05;
         node.add(rim);
 
+        // Glyph — the type mark, centered in the disc.
+        const glyphTex = track(makeGlyphTexture(NODE_GLYPH[n.type] ?? '•', color));
+        const glyphMat = track(
+          new THREE.SpriteMaterial({
+            map: glyphTex,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.92,
+          }),
+        );
+        const glyph = new THREE.Sprite(glyphMat);
+        glyph.scale.setScalar(r * 1.1);
+        glyph.position.z = 0.1;
+        node.add(glyph);
+
         // Selection ring — a fine white outline outside the rim.
         if (isSel || isLinkFrom) {
           const selGeo = track(new THREE.RingGeometry(r * 1.38, r * 1.46, 48));
@@ -406,6 +458,8 @@ export function GraphScene({
 
     let raf = 0;
     const start = performance.now();
+    const projected = new THREE.Vector3();
+    let lastSel = '';
     const animate = () => {
       const t = (performance.now() - start) / 1000;
       zoom += (targetZoom - zoom) * 0.12;
@@ -418,6 +472,25 @@ export function GraphScene({
         h.sprite.scale.setScalar(h.base * breath * (hovered ? 1.25 : 1));
       }
       renderer.render(scene, camera);
+
+      // Anchor the inline panel to the selected node (screen px).
+      const { selectedId: sel, positions: pos } = useKnowledgeCanvas.getState();
+      const p = sel ? pos[sel] : null;
+      if (p) {
+        projected.set(p.x, p.y, 0).project(camera);
+        const x = (projected.x * 0.5 + 0.5) * width;
+        const y = (-projected.y * 0.5 + 0.5) * height;
+        const r = (sel === useKnowledgeCanvas.getState().graph?.rootId
+          ? ROOT_RADIUS
+          : NODE_RADIUS);
+        // Offset by the node radius in screen px (approx via zoom & frustum).
+        const pxPerUnit = (height / (camera.top - camera.bottom)) * camera.zoom;
+        moveRef.current?.({ x, y: y - r * pxPerUnit });
+        lastSel = sel as string;
+      } else if (lastSel) {
+        lastSel = '';
+        moveRef.current?.(null);
+      }
       raf = requestAnimationFrame(animate);
     };
     animate();

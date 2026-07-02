@@ -12,6 +12,7 @@ import {
 import { useKnowledgeCanvas } from '@/lib/knowledge/store';
 import type { KnowledgeNode, OkfNodeType } from '@/lib/knowledge/types';
 import { GraphScene } from './graph-scene';
+import { ShaderBackground } from './shader-background';
 
 // Node-type colors come from the --node-* design tokens (global.css) — the
 // same palette the three.js scene reads.
@@ -27,10 +28,26 @@ const TYPE_DOT: Record<OkfNodeType, string> = {
 
 const NODE_TYPES = Object.keys(TYPE_DOT) as OkfNodeType[];
 
-// The landing page's fractal-noise grain, reused so the canvas reads as the
-// same material as the brand gradient.
-const NOISE_URI =
-  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+// A short, human-readable line about a node's key attribute, for the panel.
+function nodeMeta(node: KnowledgeNode): string | null {
+  try {
+    const a = JSON.parse(node.attributes) as Record<string, unknown>;
+    switch (node.type) {
+      case 'Reference':
+        return typeof a.url === 'string' ? a.url : null;
+      case 'Notebook':
+        return typeof a.cells === 'number' ? `${a.cells} cells` : null;
+      case 'Protocol':
+        return typeof a.version === 'number' ? `v${a.version}` : null;
+      case 'Project':
+        return typeof a.description === 'string' ? a.description : null;
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
 
 // Where clicking a node navigates.
 function hrefFor(node: KnowledgeNode, projectId: string): string | null {
@@ -86,6 +103,8 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  // Screen position of the selected node, for the anchored inline panel.
+  const [selRect, setSelRect] = useState<{ x: number; y: number } | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -145,6 +164,8 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const presentTypes = NODE_TYPES.filter((t) =>
     graph?.nodes.some((n) => n.type === t),
   );
+  const selectedNode = graph?.nodes.find((n) => n.id === selectedId) ?? null;
+  const selectedHref = selectedNode ? hrefFor(selectedNode, projectId) : null;
 
   return (
     <section className="space-y-3" data-testid="knowledge-canvas">
@@ -171,19 +192,81 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
 
-      <div className="relative h-[480px] overflow-hidden rounded-xl border shadow-sm">
-        {/* The brand sky — same gradient as the landing page. */}
+      <div className="relative h-[560px] overflow-hidden rounded-xl border shadow-sm">
+        {/* Brand sky fallback beneath the shader (WebGL-less environments). */}
         <div
           aria-hidden
           className="absolute inset-0 bg-gradient-to-b from-brand-sky via-brand-sky-light to-brand-cream"
         />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
-          style={{ backgroundImage: NOISE_URI }}
+        <ShaderBackground />
+
+        <GraphScene
+          onNodeClick={handleNodeClick}
+          onSelectionMove={setSelRect}
         />
 
-        <GraphScene onNodeClick={handleNodeClick} />
+        {/* Figma-style inline panel — anchored to the selected node, tracks
+            pan/zoom. Hidden while link-picking (the list drives that flow). */}
+        {selectedNode && selRect && !linkMode && (
+          <div
+            className="pointer-events-auto absolute z-20 w-60 -translate-x-1/2 -translate-y-full"
+            style={{ left: selRect.x, top: selRect.y - 12 }}
+            data-testid="node-panel"
+          >
+            <div className="rounded-xl border border-white/50 bg-background/95 p-3 shadow-xl backdrop-blur">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${TYPE_DOT[selectedNode.type]}`}
+                />
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {selectedNode.type}
+                </span>
+                <button
+                  type="button"
+                  className="ml-auto text-muted-foreground hover:text-foreground"
+                  onClick={() => select(null)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug">
+                {selectedNode.label}
+              </p>
+              {nodeMeta(selectedNode) && (
+                <p className="mt-0.5 line-clamp-2 break-words text-xs text-muted-foreground">
+                  {nodeMeta(selectedNode)}
+                </p>
+              )}
+              <div className="mt-2.5 flex items-center gap-2">
+                {selectedHref && (
+                  <Link
+                    href={selectedHref}
+                    className="flex-1 rounded-md bg-brand-sky px-2.5 py-1.5 text-center text-xs font-medium text-white transition-colors hover:bg-brand-sky/90"
+                    data-testid="node-panel-open"
+                    {...(selectedNode.type === 'Reference'
+                      ? { target: '_blank', rel: 'noreferrer' }
+                      : {})}
+                  >
+                    Open
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  className="rounded-md border px-2.5 py-1.5 text-xs transition-colors hover:bg-muted"
+                  onClick={() => {
+                    toggleLinkMode();
+                    setLinkFrom(selectedNode.id);
+                  }}
+                >
+                  Link
+                </button>
+              </div>
+              {/* Anchor stem pointing at the node. */}
+              <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-white/50 bg-background/95" />
+            </div>
+          </div>
+        )}
 
         {/* Synced DOM overlay — the accessible, testable interaction surface. */}
         <ul
