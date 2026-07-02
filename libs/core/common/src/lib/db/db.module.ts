@@ -11,10 +11,21 @@ import * as schema from './schema';
     {
       provide: DB_CONNECTION,
       useFactory: (configService: ConfigService) => {
+        const raw = configService.get<string>('database.connectionString') ?? '';
+        // Supabase's pooler serves a self-signed cert chain and its URL carries
+        // an `sslmode` that newer pg-connection-string escalates to
+        // `verify-full` (rejecting that chain, so every query throws
+        // SELF_SIGNED_CERT_IN_CHAIN). When SSL is needed, strip the query and
+        // disable cert verification so TLS still works. Local Postgres (no
+        // SSL) is left untouched.
+        const sslEnabled =
+          !!configService.get('database.ssl') || /sslmode=|supabase/.test(raw);
+        const connectionString = sslEnabled ? raw.split('?')[0] : raw;
+
         const pool = new Pool({
-          connectionString: configService.get('database.connectionString'),
+          connectionString,
           max: configService.get('database.max'),
-          ssl: configService.get('database.ssl') ? { rejectUnauthorized: false } : false,
+          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
         });
 
         return drizzle(pool, { schema });
