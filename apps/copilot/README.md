@@ -74,3 +74,25 @@ The same grounded engine is also exposed directly on the labda GraphQL API
 (`challenge_hypothesis`, `find_contradicting_evidence`) — the in-product copilot
 thread in the web UI uses that path and does not require this agent to be
 running.
+
+## Slack bot (issue #20)
+
+The agent can live in Slack via the EVE Slack channel + **Vercel Connect** (no
+`SLACK_BOT_TOKEN`/`SLACK_SIGNING_SECRET` to manage). One-time setup:
+
+```bash
+# 1. Connect client (Slack app credentials + inbound verification)
+npm install -g vercel@latest && export FF_CONNECT_ENABLED=1
+vercel connect create slack --triggers
+vercel connect detach <uid> --yes
+vercel connect attach <uid> --triggers --trigger-path /eve/v1/slack --yes
+#    (UID e.g. `slack/labda` — matches connectSlackCredentials in
+#     agent/channels/slack.ts. Or use the Connect dashboard.)
+
+# 2. Deploy the agent (recognises eve as a framework)
+VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod
+```
+
+Then install the Slack app to the workspace. `@mention` the bot or DM it; it
+replies in-thread using the same grounded tools. Proactive posts (e.g. the daily
+new-paper digest) can be delivered to a thread from `agent/schedules`.
