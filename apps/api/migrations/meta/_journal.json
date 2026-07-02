@@ -36,6 +36,13 @@
       "when": 1782991475572,
       "tag": "0004_productive_molly_hayes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782994017839,
+      "tag": "0005_nifty_nova",
+      "breakpoints": true
     }
   ]
 }

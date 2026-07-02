@@ -17,6 +17,7 @@ const PAPERS = [
     url: 'https://example.org/paper/stub-paper-1',
     externalIds: { DOI: '10.0000/stub1' },
     authors: [{ name: 'Ada Lovelace' }, { name: 'Alan Turing' }],
+    openAccessPdf: { url: `http://127.0.0.1:${PORT}/pdf/stub-paper-1` },
   },
   {
     paperId: 'stub-paper-2',
@@ -36,6 +37,17 @@ const server = createServer((req, res) => {
   if (url.pathname === '/' || url.pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url.pathname.startsWith('/pdf/')) {
+    // A minimal but valid PDF, for the open-access download flow.
+    const pdf =
+      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
+      '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+      '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n' +
+      'trailer<</Root 1 0 R>>\n%%EOF\n';
+    res.writeHead(200, { 'Content-Type': 'application/pdf' });
+    res.end(pdf);
     return;
   }
   if (url.pathname.endsWith('/paper/search')) {

@@ -76,6 +76,7 @@ const REFERENCE_FIELDS = `
   venue
   url
   abstract
+  openAccessPdfUrl
   createdAt
 `;
 
@@ -87,6 +88,7 @@ const LITERATURE_RESULT_FIELDS = `
   venue
   url
   abstract
+  openAccessPdfUrl
 `;
 
 export async function searchLiterature(
@@ -114,6 +116,18 @@ export async function listReferences(
   return data.references;
 }
 
+export async function downloadReferencePdf(
+  referenceId: string,
+): Promise<{ url: string; path: string }> {
+  const data = await graphql<{ downloadReferencePdf: { url: string; path: string } }>(
+    `mutation DownloadReferencePdf($referenceId: ID!) {
+      downloadReferencePdf(referenceId: $referenceId) { url path }
+    }`,
+    { referenceId },
+  );
+  return data.downloadReferencePdf;
+}
+
 export async function attachReference(input: {
   hypothesisId: string;
   externalId: string;
@@ -123,6 +137,7 @@ export async function attachReference(input: {
   venue?: string | null;
   url?: string | null;
   abstract?: string | null;
+  openAccessPdfUrl?: string | null;
 }): Promise<Reference> {
   const data = await graphql<{ attachReference: Reference }>(
     `mutation AttachReference($input: AttachReferenceInput!) {

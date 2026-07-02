@@ -11,6 +11,8 @@ export interface LiteratureHit {
   venue: string | null;
   url: string | null;
   abstract: string | null;
+  // Lawful open-access PDF URL when the paper provides one.
+  openAccessPdfUrl: string | null;
 }
 
 interface S2Paper {
@@ -21,6 +23,7 @@ interface S2Paper {
   venue?: string | null;
   url?: string | null;
   authors?: { name: string }[] | null;
+  openAccessPdf?: { url?: string | null } | null;
 }
 
 // Thin client over the Semantic Scholar Graph API. We use it as the corpus —
@@ -36,7 +39,8 @@ export class SemanticScholarClient {
       'semanticScholar.baseUrl',
     );
     const apiKey = this.configService.get<string>('semanticScholar.apiKey');
-    const fields = 'title,authors,year,venue,url,abstract,externalIds';
+    const fields =
+      'title,authors,year,venue,url,abstract,externalIds,openAccessPdf';
     const url = `${baseUrl}/paper/search?query=${encodeURIComponent(
       query,
     )}&limit=${limit}&fields=${fields}`;
@@ -83,6 +87,7 @@ export class SemanticScholarClient {
       venue: p.venue ?? null,
       url: p.url ?? null,
       abstract: p.abstract ?? null,
+      openAccessPdfUrl: p.openAccessPdf?.url || null,
     }));
   }
 

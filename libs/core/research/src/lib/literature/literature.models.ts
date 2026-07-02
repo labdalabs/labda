@@ -20,6 +20,7 @@ export class LiteratureResult {
   @Field(() => String, { nullable: true }) venue?: string | null;
   @Field(() => String, { nullable: true }) url?: string | null;
   @Field(() => String, { nullable: true }) abstract?: string | null;
+  @Field(() => String, { nullable: true }) openAccessPdfUrl?: string | null;
 }
 
 @ObjectType()
@@ -34,6 +35,7 @@ export class Reference {
   @Field(() => String, { nullable: true }) venue?: string | null;
   @Field(() => String, { nullable: true }) url?: string | null;
   @Field(() => String, { nullable: true }) abstract?: string | null;
+  @Field(() => String, { nullable: true }) openAccessPdfUrl?: string | null;
   @Field() createdAt!: Date;
 }
 
@@ -97,6 +99,18 @@ export class AttachReferenceInput {
   @IsOptional()
   @IsString()
   abstract?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  openAccessPdfUrl?: string;
+}
+
+@ObjectType()
+export class ReferencePdf {
+  // Signed URL to the cached open-access PDF in Supabase Storage.
+  @Field() url!: string;
+  @Field() path!: string;
 }
 
 export interface ReferenceDto {
@@ -110,6 +124,7 @@ export interface ReferenceDto {
   venue: string | null;
   url: string | null;
   abstract: string | null;
+  openAccessPdfUrl: string | null;
   createdAt: Date;
 }
 

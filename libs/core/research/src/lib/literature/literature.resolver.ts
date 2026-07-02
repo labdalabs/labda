@@ -6,6 +6,7 @@ import {
   AttachReferenceInput,
   LiteratureResult,
   Reference,
+  ReferencePdf,
   SearchLiteratureInput,
 } from './literature.models';
 
@@ -45,5 +46,13 @@ export class LiteratureResolver {
     @Args('input') input: AttachReferenceInput,
   ): Promise<Reference> {
     return this.literatureService.attachReference(user, input);
+  }
+
+  @Mutation(() => ReferencePdf)
+  async downloadReferencePdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('referenceId', { type: () => ID }) referenceId: string,
+  ): Promise<ReferencePdf> {
+    return this.literatureService.downloadPdf(user, referenceId);
   }
 }

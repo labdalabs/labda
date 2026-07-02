@@ -24,6 +24,7 @@ export interface LiteratureResult {
   venue: string | null;
   url: string | null;
   abstract: string | null;
+  openAccessPdfUrl: string | null;
 }
 
 export interface Reference {
@@ -37,5 +38,6 @@ export interface Reference {
   venue: string | null;
   url: string | null;
   abstract: string | null;
+  openAccessPdfUrl: string | null;
   createdAt: string;
 }

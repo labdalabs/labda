@@ -4,11 +4,13 @@ import {
   DB_CONNECTION,
   EventBusService,
   QueueService,
+  SUPABASE_ADMIN,
 } from '@labda/core-common';
 import {
   mockDbConnection,
   mockEventBusService,
   mockQueueService,
+  mockSupabaseClient,
 } from '@labda/core-common/testing';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { ReferenceAttachedEvent } from '../research.events';
@@ -40,6 +42,7 @@ describe('LiteratureService', () => {
         LiteratureService,
         EmbeddingService,
         { provide: DB_CONNECTION, useValue: db },
+        { provide: SUPABASE_ADMIN, useValue: mockSupabaseClient() },
         { provide: EventBusService, useValue: eventBus },
         { provide: QueueService, useValue: queue },
         { provide: SemanticScholarClient, useValue: s2 },

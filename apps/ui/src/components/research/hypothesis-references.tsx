@@ -6,6 +6,7 @@ import { Input } from '@labda/ui/components/ui/input';
 import { ApiError } from '@/lib/api/client';
 import {
   attachReference,
+  downloadReferencePdf,
   listReferences,
   searchLiterature,
 } from '@/lib/research/queries';
@@ -25,7 +26,21 @@ export function HypothesisReferences({
   const [results, setResults] = useState<LiteratureResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [attachingId, setAttachingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  async function handleDownloadPdf(referenceId: string) {
+    setDownloadingId(referenceId);
+    setError('');
+    try {
+      const { url } = await downloadReferencePdf(referenceId);
+      window.open(url, '_blank');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -129,16 +144,33 @@ export function HypothesisReferences({
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
-                {ref.url && (
-                  <a
-                    href={ref.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs underline"
-                  >
-                    Source
-                  </a>
-                )}
+                <div className="flex items-center gap-3">
+                  {ref.url && (
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs underline"
+                    >
+                      Source
+                    </a>
+                  )}
+                  {ref.openAccessPdfUrl ? (
+                    <button
+                      type="button"
+                      className="text-xs underline"
+                      onClick={() => handleDownloadPdf(ref.id)}
+                      disabled={downloadingId === ref.id}
+                      data-testid="download-pdf"
+                    >
+                      {downloadingId === ref.id ? 'Downloading…' : 'Download PDF'}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No open-access PDF
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

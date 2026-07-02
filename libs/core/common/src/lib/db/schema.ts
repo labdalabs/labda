@@ -91,6 +91,9 @@ export const reference = pgTable(
     venue: text(),
     url: text(),
     abstract: text(),
+    // Open-access PDF URL when the paper is lawfully downloadable (never a
+    // paywall-circumvention source). Cached to Storage on demand (issue #19).
+    openAccessPdfUrl: text(),
     // Populated asynchronously by the reference.embed pgmq worker.
     embedding: vector({ dimensions: REFERENCE_EMBEDDING_DIM }),
     createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   Logger,
@@ -6,10 +7,12 @@ import {
 } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   DB_CONNECTION,
   EventBusService,
   QueueService,
+  SUPABASE_ADMIN,
   hypothesis,
   project,
   reference,
@@ -35,6 +38,7 @@ export class LiteratureService {
 
   constructor(
     @Inject(DB_CONNECTION) private readonly db: NodePgDatabase,
+    @Inject(SUPABASE_ADMIN) private readonly supabase: SupabaseClient,
     private readonly eventBusService: EventBusService,
     private readonly queueService: QueueService,
     private readonly semanticScholar: SemanticScholarClient,
@@ -122,6 +126,7 @@ export class LiteratureService {
           venue: input.venue ?? null,
           url: input.url ?? null,
           abstract: input.abstract ?? null,
+          openAccessPdfUrl: input.openAccessPdfUrl ?? null,
         })
         .returning();
 
@@ -201,6 +206,51 @@ export class LiteratureService {
     }
   }
 
+  // Download the Reference's OPEN-ACCESS PDF (only), cache it in Supabase
+  // Storage, and return a signed URL. Refuses when no open-access PDF is known —
+  // we never fetch from paywall-circumvention sources.
+  async downloadPdf(
+    user: AuthenticatedUser,
+    referenceId: string,
+  ): Promise<{ url: string; path: string }> {
+    const [row] = await this.db
+      .select()
+      .from(reference)
+      .where(and(eq(reference.id, referenceId), eq(reference.ownerId, user.id)))
+      .limit(1);
+    if (!row) throw new NotFoundException('Reference not found');
+    if (!row.openAccessPdfUrl) {
+      throw new BadRequestException(
+        'No open-access PDF is available for this Reference',
+      );
+    }
+
+    let pdf: Buffer;
+    try {
+      const res = await fetch(row.openAccessPdfUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      pdf = Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      this.logger.error('Failed to fetch open-access PDF', { err });
+      throw new BadRequestException('Could not fetch the open-access PDF');
+    }
+
+    const path = `${user.id}/${row.id}.pdf`;
+    const { error: uploadError } = await this.supabase.storage
+      .from('reference-pdfs')
+      .upload(path, pdf, { contentType: 'application/pdf', upsert: true });
+    if (uploadError) {
+      throw new Error('Failed to store the PDF');
+    }
+    const { data: signed, error: signError } = await this.supabase.storage
+      .from('reference-pdfs')
+      .createSignedUrl(path, 60 * 60);
+    if (signError || !signed) throw new Error('Failed to produce a download URL');
+
+    this.logger.log({ referenceId }, 'Cached open-access Reference PDF');
+    return { url: signed.signedUrl, path };
+  }
+
   private toDto(row: ReferenceRow): ReferenceDto {
     return {
       id: row.id,
@@ -213,6 +263,7 @@ export class LiteratureService {
       venue: row.venue ?? null,
       url: row.url ?? null,
       abstract: row.abstract ?? null,
+      openAccessPdfUrl: row.openAccessPdfUrl ?? null,
       createdAt: row.createdAt,
     };
   }
