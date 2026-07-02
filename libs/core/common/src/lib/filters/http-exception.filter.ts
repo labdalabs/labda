@@ -38,6 +38,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // GraphQL resolvers have no HTTP response to write to here — let Apollo's
+    // formatError handle the exception (it reads statusCode from HttpException).
+    if (host.getType<'graphql' | 'http'>() === 'graphql') {
+      throw exception;
+    }
+
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<RequestLike>();
     const response = ctx.getResponse<ResponseLike>();

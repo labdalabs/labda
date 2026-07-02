@@ -1,0 +1,9 @@
+{
+  "name": "core-research",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/research/src",
+  "projectType": "library",
+  "tags": ["scope:api", "type:domain", "target:server"],
+  "// targets": "to see all targets run: nx show project core-research --web",
+  "targets": {}
+}

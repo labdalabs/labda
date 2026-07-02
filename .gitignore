@@ -51,3 +51,6 @@ Thumbs.db
 # Next.js
 .next
 out
+# Supabase local state
+supabase/.branches
+supabase/.temp
