@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/browser';
 function apiUrl(): string {
   const value = process.env.NEXT_PUBLIC_API_URL;
   if (!value) throw new Error('NEXT_PUBLIC_API_URL is not set');
-  return value;
+  // Normalize slashes so a trailing/doubled `/` in the env can't produce `//`.
+  return value.replace(/\/+$/, '').replace(/([^:])\/\/+/g, '$1/');
 }
 
 export class ApiError extends Error {

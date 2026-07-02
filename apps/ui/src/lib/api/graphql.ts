@@ -5,8 +5,10 @@ function graphqlUrl(): string {
   const value = process.env.NEXT_PUBLIC_API_URL;
   if (!value) throw new Error('NEXT_PUBLIC_API_URL is not set');
   // NEXT_PUBLIC_API_URL already includes the /api prefix; the GraphQL path is
-  // mounted at /api/graphql on the Nest server.
-  return `${value}/graphql`;
+  // mounted at /api/graphql on the Nest server. Normalize slashes so a trailing
+  // or doubled `/` in the env value can't produce `//api/graphql`.
+  const base = value.replace(/\/+$/, '').replace(/([^:])\/\/+/g, '$1/');
+  return `${base}/graphql`;
 }
 
 // Execute a GraphQL operation against the Nest API with the current Supabase
