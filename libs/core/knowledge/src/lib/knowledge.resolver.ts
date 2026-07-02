@@ -5,6 +5,9 @@ import { KnowledgeService } from './knowledge.service';
 import {
   KnowledgeExport,
   KnowledgeGraph,
+  KnowledgeLinkType,
+  KnowledgeLocalExport,
+  LinkNodesInput,
   type OkfNodeTypeGql,
   type OkfPredicateGql,
 } from './knowledge.models';
@@ -48,5 +51,27 @@ export class KnowledgeResolver {
     @Args('projectId', { type: () => ID }) projectId: string,
   ): Promise<KnowledgeExport> {
     return this.knowledgeService.exportOkf(user, projectId);
+  }
+
+  @Mutation(() => KnowledgeLocalExport)
+  async exportKnowledgeLocal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('projectId', { type: () => ID }) projectId: string,
+  ): Promise<KnowledgeLocalExport> {
+    return this.knowledgeService.exportOkfLocal(user, projectId);
+  }
+
+  @Mutation(() => KnowledgeLinkType)
+  async linkKnowledge(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: LinkNodesInput,
+  ): Promise<KnowledgeLinkType> {
+    const row = await this.knowledgeService.linkNodes(user, input);
+    return {
+      id: row.id,
+      fromNodeId: row.fromNodeId,
+      toNodeId: row.toNodeId,
+      label: row.label,
+    };
   }
 }

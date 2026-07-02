@@ -40,9 +40,8 @@ credential, and the acting researcher's token.
 # from repo root
 cp apps/copilot/.env.example apps/copilot/.env   # fill in the values
 
-# model credential — either the Vercel AI Gateway (default model id):
+# model credential — Vercel AI Gateway only:
 export AI_GATEWAY_API_KEY=...        # or `vercel link` for VERCEL_OIDC_TOKEN
-# ...or swap agent.ts to @ai-sdk/anthropic and set ANTHROPIC_API_KEY
 
 export LABDA_API_URL=http://localhost:3001/api/graphql
 export LABDA_TOKEN=<a Supabase access token>

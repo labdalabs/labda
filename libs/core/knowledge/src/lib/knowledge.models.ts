@@ -1,4 +1,11 @@
-import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
+import {
+  Field,
+  ID,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from '@nestjs/graphql';
+import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export enum OkfNodeTypeGql {
   Project = 'Project',
@@ -13,6 +20,7 @@ export enum OkfPredicateGql {
   cites = 'cites',
   supports = 'supports',
   contradicts = 'contradicts',
+  linked = 'linked',
 }
 registerEnumType(OkfPredicateGql, { name: 'OkfPredicate' });
 
@@ -44,7 +52,43 @@ export class KnowledgeGraph {
 
 @ObjectType()
 export class KnowledgeExport {
-  // Signed URL to the OKF JSON in Supabase Storage.
+  // Signed URL to the OKF bundle index.md in Supabase Storage.
   @Field() url!: string;
   @Field() path!: string;
+}
+
+@ObjectType()
+export class KnowledgeLocalExport {
+  // Local directory the OKF bundle was written to (e.g. /tmp/labda/<projectId>).
+  @Field() dir!: string;
+  @Field(() => [String]) files!: string[];
+}
+
+@ObjectType()
+export class KnowledgeLinkType {
+  @Field(() => ID) id!: string;
+  @Field(() => ID) fromNodeId!: string;
+  @Field(() => ID) toNodeId!: string;
+  @Field(() => String, { nullable: true }) label?: string | null;
+}
+
+@InputType()
+export class LinkNodesInput {
+  @Field(() => ID)
+  @IsUUID()
+  projectId!: string;
+
+  @Field(() => ID)
+  @IsString()
+  fromNodeId!: string;
+
+  @Field(() => ID)
+  @IsString()
+  toNodeId!: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  label?: string;
 }

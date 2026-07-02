@@ -15,7 +15,8 @@ export type OkfPredicate =
   | 'contains' // Project → Hypothesis / Protocol
   | 'cites' // Hypothesis → Reference
   | 'supports' // Reference → Hypothesis (grounded stance)
-  | 'contradicts'; // Reference → Hypothesis (grounded stance)
+  | 'contradicts' // Reference → Hypothesis (grounded stance)
+  | 'linked'; // user-drawn link between any two nodes (Obsidian-like)
 
 export interface OkfNode {
   id: string;
@@ -52,6 +53,8 @@ export interface GraphInputs {
     { referenceId: string; predicate: 'supports' | 'contradicts'; quote?: string }[]
   >;
   protocols: { id: string; title: string; version: number }[];
+  // User-drawn links between existing node ids (Obsidian-like).
+  links?: { id: string; fromNodeId: string; toNodeId: string; label: string | null }[];
 }
 
 export function buildOkfGraph(input: GraphInputs): OkfGraph {
@@ -111,6 +114,19 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
       attributes: { version: p.version },
     });
     addEdge(projectNodeId, pId, 'contains');
+  }
+
+  // User-drawn links — only between nodes that exist in this graph.
+  for (const l of input.links ?? []) {
+    if (seenNodes.has(l.fromNodeId) && seenNodes.has(l.toNodeId)) {
+      edges.push({
+        id: `linked:${l.id}`,
+        from: l.fromNodeId,
+        to: l.toNodeId,
+        predicate: 'linked',
+        attributes: { label: l.label, linkId: l.id },
+      });
+    }
   }
 
   return { format: 'okf/1.0', rootId: projectNodeId, nodes, edges };

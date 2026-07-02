@@ -162,3 +162,24 @@ export const analysis = pgTable(
   },
   (table) => [index('Analysis_protocolId_idx').on(table.protocolId)],
 );
+
+// A user-drawn link between two knowledge-graph nodes (Obsidian-like). Node ids
+// are the OKF node ids (e.g. "hypothesis:<uuid>"), so links can connect any
+// entities — notebooks, hypotheses, references — across the Project.
+export const knowledgeLink = pgTable(
+  'KnowledgeLink',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    fromNodeId: text().notNull(),
+    toNodeId: text().notNull(),
+    label: text(),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('KnowledgeLink_projectId_idx').on(table.projectId)],
+);

@@ -33,9 +33,15 @@ protocol, copilot) — no separate node/edge tables to keep in sync, so the grap
 can never drift from the source of truth. If graph queries become a hot path,
 materialise it from domain events later.
 
-- **Serialization / interop**: exported as OKF JSON to Supabase Storage
-  (ADR-0022) via `exportKnowledge`, returning a signed URL. Agents fetch a local
-  copy (e.g. `/tmp/labda/`) to browse.
+- **Serialization / interop — OKF to spec**: exported as a real **OKF v0.1
+  Knowledge Bundle** (GoogleCloudPlatform/knowledge-catalog) — a *directory of
+  markdown files with YAML frontmatter*, one concept per file, file path as
+  identity, concepts cross-linked with markdown links, `type` required,
+  `index.md` for progressive disclosure. Two persistence targets:
+  - **remote**: uploaded to Supabase Storage (ADR-0022) via `exportKnowledge`,
+    returning a signed URL to the bundle's `index.md`.
+  - **local (filesystem)**: written to `OKF_LOCAL_DIR` (default `/tmp/labda`)
+    via `exportKnowledgeLocal`, so the agent initialises/browses a local copy.
 - **Free browse**: a `neighbours(nodeId)` primitive (fff-style) lets the
   antagonistic agent walk the graph; exposed as the `browse_knowledge` MCP tool.
 
