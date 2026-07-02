@@ -45,11 +45,26 @@ the ones before it).
 
 ## 2. Nest API (Railway)
 
+> **DB connection gotchas (learned in prod):**
+> - Use the Supabase **session** connection (port **5432**), not the transaction
+>   pooler (6543) — the transaction pooler breaks the query protocol.
+> - **Strip the URL query string** (`?supa=…&sslmode=…`). Newer
+>   `pg-connection-string` escalates `sslmode=require` to `verify-full`, which
+>   rejects Supabase's self-signed cert chain (`SELF_SIGNED_CERT_IN_CHAIN`).
+> - Set **`DATABASE_SSL=true`** — the app then connects with TLS +
+>   `rejectUnauthorized:false` (the DB module also strips the query defensively).
+>
+> **Apply migrations to prod** (idempotent), with the service env injected:
+> ```bash
+> railway run --service <nest> -- bash scripts/prod-migrate.sh
+> ```
+
 Env vars:
 
 | var | value |
 |---|---|
-| `DATABASE_URL` | Supabase Postgres (pooler) URL |
+| `DATABASE_URL` | Supabase **session** URL, port 5432, **no query string** |
+| `DATABASE_SSL` | `true` |
 | `SUPABASE_URL` | project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key |
 | `SUPABASE_JWT_SECRET` | project JWT secret |
