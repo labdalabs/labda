@@ -63,3 +63,8 @@ apps/copilot/.nitro
 # vscode extension build output
 apps/plugin/out
 apps/plugin/*.vsix
+.vercel
+
+# vercel/railway local link state
+apps/**/.vercel
+infra/**/.railway
