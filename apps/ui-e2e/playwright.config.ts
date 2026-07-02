@@ -36,6 +36,15 @@ export default defineConfig({
       cwd: workspaceRoot,
     },
     {
+      // Deterministic EVE agent stub — the real agent needs a live model
+      // credential, so the frontend-integration e2e runs against this.
+      command: 'node apps/ui-e2e/src/support/eve-stub.mjs',
+      url: 'http://127.0.0.1:4600/health',
+      reuseExistingServer: true,
+      timeout: 30_000,
+      cwd: workspaceRoot,
+    },
+    {
       // Point the API at the stub for the literature corpus during e2e.
       command:
         'SEMANTIC_SCHOLAR_BASE_URL=http://127.0.0.1:4599 pnpm exec nx run api:serve',
@@ -46,8 +55,10 @@ export default defineConfig({
     },
     {
       // Nx injects the root `.env` (which sets PORT=3001 for the API) into
-      // every task, so pin the UI to 3000 explicitly here.
-      command: 'PORT=3000 pnpm exec nx run ui:dev',
+      // every task, so pin the UI to 3000 explicitly here. EVE_URL points the
+      // /api/eve proxy at the EVE stub.
+      command:
+        'PORT=3000 EVE_URL=http://127.0.0.1:4600 pnpm exec nx run ui:dev',
       url: 'http://localhost:3000',
       reuseExistingServer: true,
       timeout: 180_000,
