@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { ProjectDetail } from '@/components/research/project-detail';
+import { Workspace } from '@/components/workspace/workspace';
 
 export default async function ProjectPage({
   params,
@@ -17,5 +17,5 @@ export default async function ProjectPage({
   }
 
   const { id } = await params;
-  return <ProjectDetail projectId={id} />;
+  return <Workspace projectId={id} />;
 }

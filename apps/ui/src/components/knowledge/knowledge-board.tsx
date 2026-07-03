@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@labda/ui/components/ui/button';
 import { ApiError } from '@/lib/api/client';
 import { usePresence } from '@/lib/knowledge/use-presence';
+import { useWorkspace } from '@/lib/workspace/store';
 import {
   createKnowledgeNode,
   deleteKnowledgeNode,
@@ -145,6 +146,8 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         }
         return next;
       });
+      // Let the sidebar file/notebook explorer refetch.
+      useWorkspace.getState().bumpGraph();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     } finally {
@@ -706,13 +709,23 @@ function NodePanel({
         )}
         {!authored &&
           (notebookId ? (
-            <Link
-              href={`/app/projects/${projectId}/protocols/${notebookId}`}
+            <button
+              type="button"
+              onClick={() => {
+                useWorkspace.getState().openTab({
+                  key: `notebook:${notebookId}`,
+                  kind: 'notebook',
+                  title: node.label,
+                  protocolId: notebookId,
+                  closeable: true,
+                });
+                onClose();
+              }}
               className="ml-auto rounded-md bg-brand-sky px-2.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-sky/90"
               data-testid="open-notebook"
             >
               Open notebook →
-            </Link>
+            </button>
           ) : (
             <Link
               href={`/app/projects/${projectId}`}

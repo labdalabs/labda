@@ -47,11 +47,7 @@ test('knowledge board: author, place, and inspect a node', async ({ page }) => {
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page.getByLabel('Hypothesis statement').fill('CRISPR increases yield');
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
-  await expect(page.getByText('CRISPR increases yield')).toBeVisible();
-
-  // Open the knowledge board.
+  // Open the knowledge board tab.
   await page.getByTestId('open-graph').click();
   await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
 
@@ -79,8 +75,9 @@ test('knowledge board: author, place, and inspect a node', async ({ page }) => {
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('Cells cluster under stress');
 
-  // Placement persists across a reload.
+  // Placement persists across a reload (reopen the board tab after reload).
   await page.reload();
+  await page.getByTestId('open-graph').click();
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
@@ -187,7 +184,9 @@ test('knowledge board: create hypothesis + protocol in the graph', async ({
     .click();
   const panel = page.getByTestId('node-panel');
   await expect(panel).toBeVisible();
-  const open = panel.getByTestId('open-notebook');
-  await expect(open).toBeVisible();
-  await expect(open).toHaveAttribute('href', /\/protocols\//);
+  // Opening the notebook opens a notebook tab (VS Code-style).
+  await panel.getByTestId('open-notebook').click();
+  await expect(
+    page.locator('[data-testid="tab"]').filter({ hasText: 'Field trial 2026' }),
+  ).toBeVisible();
 });

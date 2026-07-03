@@ -58,21 +58,28 @@ test('share a project and see a collaborator focus a node', async ({
   await A.getByLabel('Project title').fill(title);
   await A.getByRole('button', { name: 'Create project' }).click();
   await A.getByRole('link', { name: new RegExp(title) }).click();
-  await A.getByLabel('Hypothesis statement').fill('Shared hypothesis');
-  await A.getByRole('button', { name: 'Add Hypothesis' }).click();
-  await A.getByText('Shared hypothesis').waitFor();
+  // A opens the board and creates a shared hypothesis via the composer.
+  await A.getByTestId('open-graph').click();
+  await expect(A.getByTestId('knowledge-canvas')).toBeVisible();
+  await A.getByTestId('add-node-toggle').click();
+  const composerA = A.getByTestId('node-composer');
+  await composerA.getByRole('button', { name: 'Hypothesis', exact: true }).click();
+  await composerA.getByLabel('Node title').fill('Shared hypothesis');
+  await composerA.getByRole('button', { name: 'Add' }).click();
+  await expect(
+    A.getByTestId('tray-node').filter({ hasText: 'Shared hypothesis' }),
+  ).toBeVisible();
 
-  // Sharing lives in project Settings now.
-  await A.getByRole('link', { name: 'Settings' }).click();
+  // Sharing lives in the project Settings tab now.
+  await A.getByRole('button', { name: 'Settings' }).click();
   await expect(A.getByTestId('project-settings')).toBeVisible();
   const share = A.getByTestId('share-panel');
   await share.getByLabel('Collaborator email').fill(emailB);
   await share.getByRole('button', { name: 'Share' }).click();
   await expect(A.getByTestId('member-list')).toContainText(emailB);
 
-  // A opens the board and places the hypothesis cell.
+  // Back to the board: place the hypothesis and focus it.
   await A.getByTestId('open-graph').click();
-  await expect(A.getByTestId('knowledge-canvas')).toBeVisible();
   await A.getByTestId('tray-node')
     .filter({ hasText: 'Shared hypothesis' })
     .dragTo(A.getByTestId('hex-drop').first());

@@ -12,13 +12,26 @@ import { Thread } from '@/components/assistant-ui/thread';
 // The active project id rides along as ephemeral client context on every turn
 // (never persisted to history, never shown in the thread), so the agent's tools
 // know which project to act on.
-export function EveChat({ projectId }: { projectId?: string }) {
+export function EveChat({
+  projectId,
+  goal,
+  className,
+}: {
+  projectId?: string;
+  goal?: string;
+  className?: string;
+}) {
   const runtime = useEveAgentRuntime(
     projectId
       ? {
           prepareSend: (input) => ({
             ...input,
-            clientContext: `Active project id: ${projectId}`,
+            clientContext: [
+              `Active project id: ${projectId}`,
+              goal ? `Session goal: ${goal}` : null,
+            ]
+              .filter(Boolean)
+              .join('\n'),
           }),
         }
       : undefined,
@@ -28,7 +41,10 @@ export function EveChat({ projectId }: { projectId?: string }) {
     <AssistantRuntimeProvider runtime={runtime}>
       <div
         data-testid="eve-chat"
-        className="flex h-[70vh] flex-col overflow-hidden rounded-lg border"
+        className={
+          className ??
+          'flex h-[70vh] flex-col overflow-hidden rounded-lg border'
+        }
       >
         <Thread />
       </div>

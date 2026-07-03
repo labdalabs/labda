@@ -4,18 +4,21 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getProject, listProjects } from '@/lib/research/queries';
+import { listProjects } from '@/lib/research/queries';
 import { listProtocols } from '@/lib/protocol/queries';
-import type { Hypothesis, Project } from '@/lib/research/types';
+import { knowledgeGraph } from '@/lib/knowledge/queries';
+import type { Project } from '@/lib/research/types';
 import type { Protocol } from '@/lib/protocol/types';
+import type { KnowledgeNode } from '@/lib/knowledge/types';
+import { useWorkspace } from '@/lib/workspace/store';
 
 // A persistent Linear/IDE-style shell: a left panel that manages the workspace
-// (project switcher) and, inside a project, its artifacts (hypotheses,
-// notebooks, docs) plus the project-scoped views. Content renders in <main>.
+// (project switcher) and, inside a project, an explorer that opens tabs in the
+// main area (the tabbed <Workspace>). Views, notebooks, and OKF files all open
+// as tabs rather than navigating.
 
 const PROJECT_RE = /^\/app\/projects\/([^/]+)/;
 
-// 16px stroke icons — quiet, consistent, IDE-flavored.
 function Icon({ path, className = '' }: { path: string; className?: string }) {
   return (
     <svg
@@ -35,64 +38,99 @@ function Icon({ path, className = '' }: { path: string; className?: string }) {
 
 const ICONS = {
   projects: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
-  overview: 'M4 6h16M4 12h16M4 18h10',
+  work: 'M4 6h16M4 12h16M4 18h10',
   graph: 'M6 6h.01M18 6h.01M12 18h.01M6 6l6 12M18 6l-6 12',
-  assistant: 'M12 3l1.9 4.3L18 9l-4.1 1.7L12 15l-1.9-4.3L6 9l4.1-1.7zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z',
-  hypothesis: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z',
   notebook: 'M8 3v18M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
   doc: 'M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v4h4',
-  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+  settings:
+    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   signout: 'M15 12H4m0 0 4-4m-4 4 4 4M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4',
 } as const;
 
-function NavItem({
-  href,
+// OKF directory each node type lives under (Notebooks are their own section).
+const OKF_DIR: Record<string, string> = {
+  Hypothesis: 'hypotheses',
+  Protocol: 'protocols',
+  Reference: 'references',
+  Paper: 'references',
+  Analysis: 'analyses',
+  Thesis: 'thesis',
+  Idea: 'nodes',
+  Observation: 'nodes',
+  Conclusion: 'nodes',
+  Knowledge: 'nodes',
+  Data: 'nodes',
+};
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40) || 'untitled';
+
+function nodeBody(n: KnowledgeNode): string {
+  try {
+    const c = (JSON.parse(n.attributes) as { content?: unknown }).content;
+    if (typeof c === 'string' && c.trim()) return c;
+  } catch {
+    /* no body */
+  }
+  return '';
+}
+
+function Row({
   icon,
   label,
   active,
+  onClick,
+  indent,
   testid,
+  title,
 }: {
-  href: string;
-  icon: keyof typeof ICONS;
+  icon?: keyof typeof ICONS;
   label: string;
-  active: boolean;
+  active?: boolean;
+  onClick: () => void;
+  indent?: boolean;
   testid?: string;
+  title?: string;
 }) {
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
+      onClick={onClick}
       data-testid={testid}
-      className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+      title={title ?? label}
+      className={`flex w-full items-center gap-2.5 truncate rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+        indent ? 'pl-8 text-xs' : ''
+      } ${
         active
           ? 'bg-muted font-medium text-foreground'
           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
       }`}
     >
-      <Icon path={ICONS[icon]} />
+      {icon && <Icon path={ICONS[icon]} />}
       <span className="truncate">{label}</span>
-    </Link>
+    </button>
   );
 }
 
-function TreeSection({
+function SectionTitle({
   icon,
   title,
   count,
-  children,
 }: {
   icon: keyof typeof ICONS;
   title: string;
   count?: number;
-  children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-0.5">
-      <div className="flex items-center gap-2 px-2.5 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        <Icon path={ICONS[icon]} className="h-3.5 w-3.5" />
-        <span>{title}</span>
-        {count !== undefined && <span className="text-muted-foreground/70">{count}</span>}
-      </div>
-      {children}
+    <div className="flex items-center gap-2 px-2.5 pt-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <Icon path={ICONS[icon]} className="h-3.5 w-3.5" />
+      <span>{title}</span>
+      {count !== undefined && (
+        <span className="text-muted-foreground/70">{count}</span>
+      )}
     </div>
   );
 }
@@ -108,8 +146,12 @@ export function AppShell({
   const projectId = pathname.match(PROJECT_RE)?.[1] ?? null;
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
+  const [nodes, setNodes] = useState<KnowledgeNode[]>([]);
+
+  const activeKey = useWorkspace((s) => s.activeKey);
+  const openTab = useWorkspace((s) => s.openTab);
+  const graphVersion = useWorkspace((s) => s.graphVersion);
 
   useEffect(() => {
     if (!email) return;
@@ -118,29 +160,36 @@ export function AppShell({
 
   useEffect(() => {
     if (!email || !projectId) {
-      setHypotheses([]);
       setProtocols([]);
+      setNodes([]);
       return;
     }
     let live = true;
-    getProject(projectId)
-      .then((p) => live && setHypotheses(p.hypotheses ?? []))
-      .catch(() => undefined);
     listProtocols(projectId)
       .then((p) => live && setProtocols(p))
+      .catch(() => undefined);
+    knowledgeGraph(projectId)
+      .then((g) => live && setNodes(g.nodes))
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [email, projectId, pathname]);
+  }, [email, projectId, pathname, graphVersion]);
 
   const activeProject = projects.find((p) => p.id === projectId);
-  const base = projectId ? `/app/projects/${projectId}` : '';
+
+  // Files = every node except notebooks (those get their own section), grouped
+  // into OKF directories.
+  const files = nodes.filter((n) => n.type !== 'Notebook' && n.type !== 'Protocol');
+  const byDir = new Map<string, KnowledgeNode[]>();
+  for (const n of files) {
+    const dir = OKF_DIR[n.type] ?? 'nodes';
+    (byDir.get(dir) ?? byDir.set(dir, []).get(dir)!).push(n);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <aside className="flex w-60 shrink-0 flex-col border-r border-black/[0.06] bg-muted/30">
-        {/* Brand */}
         <Link href="/app" className="flex items-center gap-2 px-4 py-3.5">
           <Image
             src="/labda_logo_xs.png"
@@ -152,12 +201,17 @@ export function AppShell({
         </Link>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-          <NavItem
+          <Link
             href="/app"
-            icon="projects"
-            label="Projects"
-            active={pathname === '/app'}
-          />
+            className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+              pathname === '/app'
+                ? 'bg-muted font-medium text-foreground'
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+            }`}
+          >
+            <Icon path={ICONS.projects} />
+            <span className="truncate">Projects</span>
+          </Link>
 
           {projectId && (
             <div className="mt-4 space-y-0.5">
@@ -165,83 +219,108 @@ export function AppShell({
                 {activeProject?.title ?? 'Project'}
               </div>
 
-              <NavItem
-                href={base}
-                icon="overview"
-                label="Overview"
-                active={pathname === base}
+              <Row
+                icon="work"
+                label="Work"
+                active={activeKey === 'work'}
+                onClick={() =>
+                  openTab({ key: 'work', kind: 'work', title: 'Work', closeable: false })
+                }
               />
-              <NavItem
-                href={`${base}/graph`}
+              <Row
                 icon="graph"
-                label="Knowledge graph"
-                active={pathname === `${base}/graph`}
+                label="Knowledge"
                 testid="open-graph"
+                active={activeKey === 'knowledge'}
+                onClick={() =>
+                  openTab({
+                    key: 'knowledge',
+                    kind: 'knowledge',
+                    title: 'Knowledge',
+                    closeable: false,
+                  })
+                }
               />
-              <NavItem
-                href={`${base}/assistant`}
-                icon="assistant"
-                label="Assistant"
-                active={pathname === `${base}/assistant`}
-              />
-              <NavItem
-                href={`${base}/settings`}
+              <Row
                 icon="settings"
                 label="Settings"
-                active={pathname === `${base}/settings`}
+                active={activeKey === 'settings'}
+                onClick={() =>
+                  openTab({
+                    key: 'settings',
+                    kind: 'settings',
+                    title: 'Settings',
+                    closeable: true,
+                  })
+                }
               />
 
-              <TreeSection icon="hypothesis" title="Hypotheses" count={hypotheses.length}>
-                {hypotheses.length === 0 ? (
-                  <p className="px-2.5 py-1 text-xs text-muted-foreground/70">None yet</p>
-                ) : (
-                  hypotheses.map((h) => (
-                    <Link
-                      key={h.id}
-                      href={base}
-                      className="block truncate rounded-md px-2.5 py-1 pl-8 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                      title={h.statement}
-                    >
-                      {h.statement}
-                    </Link>
-                  ))
-                )}
-              </TreeSection>
+              <SectionTitle icon="notebook" title="Notebooks" count={protocols.length} />
+              {protocols.length === 0 ? (
+                <p className="px-2.5 py-1 text-xs text-muted-foreground/70">None yet</p>
+              ) : (
+                protocols.map((p) => (
+                  <Row
+                    key={p.id}
+                    label={p.title}
+                    indent
+                    active={activeKey === `notebook:${p.id}`}
+                    onClick={() =>
+                      openTab({
+                        key: `notebook:${p.id}`,
+                        kind: 'notebook',
+                        title: p.title,
+                        protocolId: p.id,
+                        closeable: true,
+                      })
+                    }
+                  />
+                ))
+              )}
 
-              <TreeSection icon="notebook" title="Notebooks" count={protocols.length}>
-                {protocols.length === 0 ? (
-                  <p className="px-2.5 py-1 text-xs text-muted-foreground/70">None yet</p>
-                ) : (
-                  protocols.map((p) => {
-                    const href = `${base}/protocols/${p.id}`;
-                    return (
-                      <Link
-                        key={p.id}
-                        href={href}
-                        className={`block truncate rounded-md px-2.5 py-1 pl-8 text-xs hover:bg-muted/60 hover:text-foreground ${
-                          pathname === href
-                            ? 'bg-muted font-medium text-foreground'
-                            : 'text-muted-foreground'
-                        }`}
-                        title={p.title}
-                      >
-                        {p.title}
-                      </Link>
-                    );
-                  })
-                )}
-              </TreeSection>
-
-              <TreeSection icon="doc" title="Docs">
+              <SectionTitle icon="doc" title="Files" count={files.length} />
+              {files.length === 0 ? (
                 <p className="px-2.5 py-1 text-xs text-muted-foreground/70">
-                  Coming soon
+                  Add nodes in the graph
                 </p>
-              </TreeSection>
+              ) : (
+                [...byDir.entries()].map(([dir, items]) => (
+                  <div key={dir} className="space-y-0.5">
+                    <p className="px-2.5 pt-1.5 font-mono text-[10px] text-muted-foreground/60">
+                      {dir}/
+                    </p>
+                    {items.map((n) => {
+                      const path = `${dir}/${slug(n.label)}.md`;
+                      const key = `file:${n.id}`;
+                      return (
+                        <Row
+                          key={n.id}
+                          label={`${slug(n.label)}.md`}
+                          indent
+                          active={activeKey === key}
+                          title={n.label}
+                          onClick={() =>
+                            openTab({
+                              key,
+                              kind: 'file',
+                              title: n.label,
+                              filePath: path,
+                              nodeId: n.id,
+                              nodeType: n.type,
+                              content: nodeBody(n),
+                              closeable: true,
+                            })
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                ))
+              )}
             </div>
           )}
         </nav>
 
-        {/* Identity */}
         <div className="border-t border-black/[0.06] p-3">
           {email ? (
             <div className="flex items-center gap-2">
@@ -273,7 +352,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
     </div>
   );
 }
