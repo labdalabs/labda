@@ -64,6 +64,29 @@ const DIRS: [number, number][] = [
 function cellToPixel(q: number, r: number) {
   return { x: HEX_W * (q + r / 2), y: 1.5 * SIZE * r };
 }
+
+// Round fractional axial coords to the nearest hex (via cube coords) — used to
+// snap a free-space drop onto the honeycomb lattice.
+function axialRound(qf: number, rf: number): { q: number; r: number } {
+  const x = qf;
+  const z = rf;
+  const y = -x - z;
+  let rx = Math.round(x);
+  let ry = Math.round(y);
+  let rz = Math.round(z);
+  const dx = Math.abs(rx - x);
+  const dy = Math.abs(ry - y);
+  const dz = Math.abs(rz - z);
+  if (dx > dy && dx > dz) rx = -ry - rz;
+  else if (dy > dz) ry = -rx - rz;
+  else rz = -rx - ry;
+  return { q: rx, r: rz };
+}
+function pixelToAxial(px: number, py: number): { q: number; r: number } {
+  const r = py / (1.5 * SIZE);
+  const q = px / HEX_W - r / 2;
+  return axialRound(q, r);
+}
 const hkey = (q: number, r: number) => `${q},${r}`;
 
 function parseAttr(item: { attributes: string }): Record<string, unknown> {
@@ -213,6 +236,22 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
     panRef.current = null;
   }
 
+  // Drop a node onto open board space (not a highlighted zone) to start a new,
+  // separate island — it snaps to the nearest empty hex and, having no occupied
+  // neighbours there, stays unlinked from the other islands.
+  function onBoardDrop(e: React.DragEvent) {
+    if (e.target !== boardRef.current) return; // a hex zone handled it
+    const id = e.dataTransfer.getData('nodeId');
+    const el = boardRef.current;
+    if (!id || !el) return;
+    const rect = el.getBoundingClientRect();
+    const px = e.clientX - (rect.left + rect.width / 2 + pan.x);
+    const py = e.clientY - (rect.top + rect.height / 2 + pan.y);
+    const { q, r } = pixelToAxial(px, py);
+    if (occupied.has(hkey(q, r))) return; // cell taken
+    void placeNode(id, q, r);
+  }
+
   return (
     <section
       className="relative flex h-full min-h-[520px] w-full overflow-hidden bg-[#eef2f8] text-slate-800"
@@ -248,6 +287,8 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         onPointerMove={onBgMove}
         onPointerUp={onBgUp}
         onPointerLeave={onBgUp}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={onBoardDrop}
         data-testid="hex-board"
       >
         <div
@@ -397,6 +438,12 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
           </form>
         )}
         <ul className="flex-1 space-y-1 overflow-auto p-2" data-testid="node-tray">
+          {!loading && tray.length > 0 && (
+            <li className="px-1 pb-1 text-[10px] leading-snug text-muted-foreground">
+              Drag onto a highlighted cell to grow an island, or drop in open
+              space to start a new one.
+            </li>
+          )}
           {loading ? (
             <li className="px-1 text-xs text-muted-foreground">Loading…</li>
           ) : tray.length === 0 ? (

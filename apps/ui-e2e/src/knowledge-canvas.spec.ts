@@ -85,3 +85,58 @@ test('knowledge board: author, place, and inspect a node', async ({ page }) => {
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
 });
+
+// Two separate groups in one project: drop one node on the seed cell, another
+// in open board space, and they form independent (unlinked) islands.
+test('knowledge board: independent islands', async ({ page }) => {
+  test.setTimeout(120_000);
+  const email = `islands_${Date.now()}@lab.test`;
+  await signIn(page, email);
+
+  await page.goto('/app');
+  const projectTitle = `Islands ${Date.now()}`;
+  await page.getByLabel('Project title').fill(projectTitle);
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
+
+  await page.getByTestId('open-graph').click();
+  await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
+
+  const author = async (title: string) => {
+    await page.getByTestId('add-node-toggle').click();
+    const composer = page.getByTestId('node-composer');
+    await composer.getByRole('button', { name: 'Idea' }).click();
+    await composer.getByLabel('Node title').fill(title);
+    await composer.getByRole('button', { name: 'Add' }).click();
+    await expect(
+      page.getByTestId('tray-node').filter({ hasText: title }),
+    ).toBeVisible();
+  };
+  await author('Alpha island');
+  await author('Beta island');
+
+  // Alpha → the seed cell (first island).
+  await page
+    .getByTestId('tray-node')
+    .filter({ hasText: 'Alpha island' })
+    .dragTo(page.getByTestId('hex-drop').first());
+  await expect(page.locator('[data-testid="graph-node"]')).toHaveCount(1);
+
+  // Beta → open space far from Alpha (a second, separate island).
+  await page
+    .getByTestId('tray-node')
+    .filter({ hasText: 'Beta island' })
+    .dragTo(page.getByTestId('hex-board'), {
+      targetPosition: { x: 1000, y: 660 },
+    });
+  await expect(page.locator('[data-testid="graph-node"]')).toHaveCount(2);
+
+  // The islands are independent: Beta's panel shows no link to Alpha.
+  await page
+    .locator('[data-testid="graph-node"]')
+    .filter({ hasText: 'Beta island' })
+    .click();
+  const panel = page.getByTestId('node-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).not.toContainText('Alpha island');
+});
