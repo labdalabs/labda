@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { createProtocolAndOpen } from './support/graph';
 
 const MAILPIT = 'http://127.0.0.1:54324';
 
@@ -47,14 +48,7 @@ test('run an analysis on sample output → export → download a valid xlsx', as
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page
-    .getByTestId('protocols-panel')
-    .getByLabel('Protocol title')
-    .fill('Assay');
-  await page
-    .getByTestId('protocols-panel')
-    .getByRole('button', { name: 'Create Protocol' })
-    .click();
+  await createProtocolAndOpen(page, 'Assay');
 
   // The Analysis panel is on the notebook editor page.
   const panel = page.getByTestId('analysis-panel');

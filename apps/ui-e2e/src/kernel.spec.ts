@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { createProtocolAndOpen } from './support/graph';
 
 const MAILPIT = 'http://127.0.0.1:54324';
 
@@ -48,16 +49,7 @@ test('open a Protocol → run a cell → see output; outputs persist', async ({
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page
-    .getByTestId('protocols-panel')
-    .getByLabel('Protocol title')
-    .fill('Compute v1');
-  await page
-    .getByTestId('protocols-panel')
-    .getByRole('button', { name: 'Create Protocol' })
-    .click();
-
-  await expect(page.getByTestId('cell-list')).toBeVisible();
+  await createProtocolAndOpen(page, 'Compute v1');
 
   // Add a code cell and run a computation + assign a variable.
   await page.getByRole('button', { name: '+ Code' }).click();

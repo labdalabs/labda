@@ -27,3 +27,20 @@ export async function seedHypothesisAndOpen(
     .click();
   await expect(page.getByTestId('node-panel')).toBeVisible();
 }
+
+// Create a Protocol via the graph composer, then open its notebook from the
+// sidebar Notebooks section (opens the editor in a tab).
+export async function createProtocolAndOpen(
+  page: Page,
+  title: string,
+): Promise<void> {
+  await page.getByTestId('open-graph').click();
+  await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
+  await page.getByTestId('add-node-toggle').click();
+  const composer = page.getByTestId('node-composer');
+  await composer.getByRole('button', { name: 'Protocol', exact: true }).click();
+  await composer.getByLabel('Node title').fill(title);
+  await composer.getByRole('button', { name: 'Add' }).click();
+  await page.locator('aside').getByRole('button', { name: title }).click();
+  await expect(page.getByTestId('cell-list')).toBeVisible();
+}

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { createProtocolAndOpen } from './support/graph';
 
 const MAILPIT = 'http://127.0.0.1:54324';
 
@@ -48,18 +49,8 @@ test('create Protocol → edit a cell → save → reopen shows the change', asy
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  // Create a Protocol (navigates into the notebook editor).
-  await page
-    .getByTestId('protocols-panel')
-    .getByLabel('Protocol title')
-    .fill('Assay v1');
-  await page
-    .getByTestId('protocols-panel')
-    .getByRole('button', { name: 'Create Protocol' })
-    .click();
-
-  // Editor opens with the starter markdown cell.
-  await expect(page.getByTestId('cell-list')).toBeVisible();
+  // Create a Protocol in the graph and open its notebook.
+  await createProtocolAndOpen(page, 'Assay v1');
   await expect(page.getByTestId('notebook-cell')).toHaveCount(1);
 
   // Add a code cell and edit it.
