@@ -15,7 +15,8 @@ import { useWorkspace, type WorkspaceTab } from '@/lib/workspace/store';
 export function OkfFileView({ tab }: { tab: WorkspaceTab }) {
   const projectId = useWorkspace((s) => s.projectId);
   const bumpGraph = useWorkspace((s) => s.bumpGraph);
-  const [content, setContent] = useState<string | null>(null);
+  const [content, setContent] = useState('');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,11 +24,15 @@ export function OkfFileView({ tab }: { tab: WorkspaceTab }) {
 
   const load = useCallback(async () => {
     if (!projectId || !tab.filePath) return;
+    setStatus('loading');
+    setError('');
     try {
       const f = await okfFile(projectId, tab.filePath);
       setContent(f.content);
+      setStatus('ready');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      setStatus('error');
     }
   }, [projectId, tab.filePath]);
 
@@ -110,15 +115,32 @@ export function OkfFileView({ tab }: { tab: WorkspaceTab }) {
             </Button>
           </div>
         </div>
-      ) : content === null ? (
+      ) : status === 'loading' ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : status === 'error' ? (
+        <div
+          className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-4"
+          role="alert"
+        >
+          <p className="text-sm font-medium text-destructive">
+            This file couldn&rsquo;t be loaded.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {error || 'It may have been removed.'}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => void load()}>
+            Retry
+          </Button>
+        </div>
       ) : (
         <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">
           {content}
         </pre>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {status !== 'error' && error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
     </section>
   );
 }

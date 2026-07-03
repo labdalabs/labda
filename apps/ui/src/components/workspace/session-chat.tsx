@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UseEveAgentRuntimeOptions } from '@assistant-ui/eve';
 import { EveChat } from '@/components/eve/eve-chat';
 import { listSessions, saveAgentSession } from '@/lib/session/queries';
@@ -18,8 +18,10 @@ function safeParse<T>(raw: string | null | undefined, fallback: T): T {
 }
 
 // A persisted EVE session: seed the runtime with the stored transcript so the
-// conversation resumes on reload, and stream new events back to the backend
-// (debounced) so it stays saved.
+// conversation resumes on reload, and stream new events back to the backend so
+// it stays saved. Saves are THROTTLED (checkpoint at most every ~1.2s even
+// during a long stream) and FLUSHED on tab-hide / unmount / unload, so the tail
+// of a turn is never lost.
 export function SessionChat({
   projectId,
   sessionId,
@@ -35,6 +37,31 @@ export function SessionChat({
   const eventsRef = useRef<Events>([] as unknown as Events);
   const sessionRef = useRef<Session>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirty = useRef(false);
+
+  const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (!dirty.current) return;
+    dirty.current = false;
+    void saveAgentSession({
+      id: sessionId,
+      transcript: JSON.stringify(eventsRef.current),
+      sessionState: sessionRef.current
+        ? JSON.stringify(sessionRef.current)
+        : undefined,
+    }).catch(() => undefined);
+  }, [sessionId]);
+
+  // Throttle: mark dirty and ensure a save fires within ~1.2s. Unlike a debounce
+  // this does NOT reset on each event, so a continuous stream still checkpoints.
+  const schedule = useCallback(() => {
+    dirty.current = true;
+    if (timer.current) return;
+    timer.current = setTimeout(flush, 1200);
+  }, [flush]);
 
   useEffect(() => {
     let live = true;
@@ -56,22 +83,21 @@ export function SessionChat({
       );
     return () => {
       live = false;
-      if (timer.current) clearTimeout(timer.current);
     };
   }, [projectId, sessionId]);
 
-  function save() {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      void saveAgentSession({
-        id: sessionId,
-        transcript: JSON.stringify(eventsRef.current),
-        sessionState: sessionRef.current
-          ? JSON.stringify(sessionRef.current)
-          : undefined,
-      }).catch(() => undefined);
-    }, 1200);
-  }
+  // Flush pending saves when the tab is hidden, the page unloads, or this
+  // component unmounts (tab closed / switched away).
+  useEffect(() => {
+    const onHide = () => flush();
+    window.addEventListener('beforeunload', onHide);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('beforeunload', onHide);
+      document.removeEventListener('visibilitychange', onHide);
+      flush();
+    };
+  }, [flush]);
 
   if (!seed) {
     return (
@@ -88,11 +114,11 @@ export function SessionChat({
         initialSession={seed.session}
         onEvent={(e) => {
           eventsRef.current = [...eventsRef.current, e] as Events;
-          save();
+          schedule();
         }}
         onSessionChange={(s) => {
           sessionRef.current = s;
-          save();
+          schedule();
         }}
         className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-lg border"
       />

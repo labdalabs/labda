@@ -102,8 +102,8 @@ export function ProjectHome({ projectId }: { projectId: string }) {
         />
         <Button
           type="submit"
+          variant="brand"
           disabled={!goal.trim() || busy}
-          className="bg-brand-sky text-white shadow-sm transition-colors hover:bg-brand-sky/90"
           data-testid="start-session"
         >
           {busy ? 'Starting…' : 'Start session'}

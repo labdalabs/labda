@@ -140,8 +140,8 @@ export function ProjectsView({
           <div className="flex items-center gap-3 pt-1">
             <Button
               type="submit"
+              variant="brand"
               disabled={creating || !title.trim()}
-              className="bg-brand-sky text-white shadow-sm transition-colors hover:bg-brand-sky/90"
             >
               {creating ? 'Creating…' : 'Create project'}
             </Button>

@@ -72,7 +72,7 @@ export function ShareProject({ projectId }: { projectId: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Button type="submit" size="sm" disabled={busy || !email.trim()}>
+        <Button type="submit" size="sm" variant="brand" disabled={busy || !email.trim()}>
           {busy ? 'Sharing…' : 'Share'}
         </Button>
       </form>

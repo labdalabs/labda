@@ -13,6 +13,7 @@ import { SessionChat } from './session-chat';
 // here; each open tab stays mounted (so notebooks, sessions, and the board keep
 // their state when you switch), and only the active one is shown.
 export function Workspace({ projectId }: { projectId: string }) {
+  const storeProjectId = useWorkspace((s) => s.projectId);
   const tabs = useWorkspace((s) => s.tabs);
   const activeKey = useWorkspace((s) => s.activeKey);
   const setProject = useWorkspace((s) => s.setProject);
@@ -22,6 +23,16 @@ export function Workspace({ projectId }: { projectId: string }) {
   useEffect(() => {
     setProject(projectId);
   }, [projectId, setProject]);
+
+  // Until the store has switched to this project, don't render — otherwise the
+  // previous project's tabs (and their data fetches) would briefly mount here.
+  if (storeProjectId !== projectId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -35,30 +46,38 @@ export function Workspace({ projectId }: { projectId: string }) {
           return (
             <div
               key={t.key}
-              role="tab"
-              aria-selected={active}
               data-testid="tab"
               data-tab-key={t.key}
-              onClick={() => setActive(t.key)}
-              className={`group flex min-w-0 max-w-52 shrink-0 cursor-pointer items-center gap-2 border-r px-3 text-sm ${
-                active
-                  ? 'bg-background font-medium text-foreground'
-                  : 'text-muted-foreground hover:bg-background/50'
+              className={`group relative flex min-w-0 max-w-52 shrink-0 items-center border-r ${
+                active ? 'bg-background' : 'hover:bg-background/50'
               }`}
             >
-              <span className="truncate">{t.title}</span>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                tabIndex={active ? 0 : -1}
+                onClick={() => setActive(t.key)}
+                className={`flex min-w-0 items-center py-2 pl-3 text-sm ${
+                  t.closeable === false ? 'pr-3' : 'pr-1'
+                } ${active ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+              >
+                <span className="truncate">{t.title}</span>
+              </button>
               {t.closeable !== false && (
                 <button
                   type="button"
                   aria-label="Close tab"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(t.key);
-                  }}
-                  className="rounded p-0.5 text-muted-foreground/60 opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                  onClick={() => closeTab(t.key)}
+                  className="mr-1.5 flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 opacity-60 transition hover:bg-muted hover:text-foreground group-hover:opacity-100"
                 >
-                  ✕
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-3 w-3" aria-hidden>
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
+              )}
+              {active && (
+                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-sky" />
               )}
             </div>
           );

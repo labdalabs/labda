@@ -273,7 +273,7 @@ export function NotebookEditor({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={handleSave} disabled={saving}>
+        <Button size="sm" variant="brand" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </Button>
         <Button size="sm" variant="outline" onClick={runAll}>
