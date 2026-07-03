@@ -62,6 +62,13 @@ export class KnowledgeGraph {
 }
 
 @ObjectType()
+export class KnowledgeNeighbourhood {
+  @Field(() => KnowledgeNode, { nullable: true }) node?: KnowledgeNode | null;
+  @Field(() => [KnowledgeEdge]) edges!: KnowledgeEdge[];
+  @Field(() => [KnowledgeNode]) neighbours!: KnowledgeNode[];
+}
+
+@ObjectType()
 export class KnowledgeExport {
   // Signed URL to the OKF bundle index.md in Supabase Storage.
   @Field() url!: string;
