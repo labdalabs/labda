@@ -240,10 +240,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    /* font-sans lives here (not on html): next/font defines --font-nunito etc.
+       on <body>, so applying the font on <html> makes the var() undefined,
+       which invalidates the whole font-family and falls back to serif. */
+    @apply bg-background text-foreground font-sans;
   }
 }
 
