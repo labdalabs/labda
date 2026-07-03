@@ -43,4 +43,4 @@ async function bootstrap() {
 
 bootstrap();
 
-// deploy: knowledge + collaboration backend (libs/core changes)
+// deploy: knowledge board mutations (NodePosition, node CRUD)
