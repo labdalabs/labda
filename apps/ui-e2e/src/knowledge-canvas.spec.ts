@@ -82,10 +82,17 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
   const composer = page.getByTestId('node-composer');
   await composer.getByRole('button', { name: 'Observation' }).click();
   await composer.getByLabel('Node title').fill('Cells cluster under stress');
+  await composer
+    .getByLabel('Node content')
+    .fill('At 43°C, cells aggregate near the nucleus.');
   await composer.getByRole('button', { name: 'Add node' }).click();
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
+
+  // Focusing the authored node shows its markdown body in the dossier.
+  await page.locator('[data-node-type="Observation"] button').first().click();
+  await expect(page.getByTestId('node-content')).toContainText('At 43°C');
 
   // Link two nodes (Obsidian-like) and confirm it persists.
   await expect(page.getByTestId('linked-count')).toContainText('0 user links');

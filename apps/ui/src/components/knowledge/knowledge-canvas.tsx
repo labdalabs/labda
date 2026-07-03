@@ -106,6 +106,26 @@ function nodeMeta(node: KnowledgeNode): string | null {
   }
 }
 
+// The authored markdown body of a node (empty for derived entities).
+function nodeContent(node: KnowledgeNode): string | null {
+  try {
+    const a = JSON.parse(node.attributes) as Record<string, unknown>;
+    return typeof a.content === 'string' && a.content.trim() ? a.content : null;
+  } catch {
+    return null;
+  }
+}
+
+// A node's attached source file (pdf/csv), if any.
+function nodeSource(node: KnowledgeNode): string | null {
+  try {
+    const a = JSON.parse(node.attributes) as Record<string, unknown>;
+    return typeof a.sourceRef === 'string' && a.sourceRef ? a.sourceRef : null;
+  } catch {
+    return null;
+  }
+}
+
 // Where opening a cell navigates.
 function hrefFor(node: KnowledgeNode, projectId: string): string | null {
   const localId = node.id.split(':')[1] ?? '';
@@ -288,7 +308,7 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
       {/* Focused-cell dossier — the chosen cell, full attention. */}
       {focused && selectedNode && (
         <div
-          className="pointer-events-auto absolute inset-y-0 right-0 z-30 flex w-full max-w-sm items-center p-4 sm:p-6"
+          className="pointer-events-auto absolute bottom-0 right-0 top-16 z-30 flex w-full max-w-sm items-center p-4 sm:p-6"
           data-testid="node-panel"
         >
           <div className={`${SURFACE} w-full p-5`}>
@@ -318,11 +338,32 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
               </p>
             )}
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
+            {/* The node's authored markdown body. */}
+            {nodeContent(selectedNode) && (
+              <div
+                className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap border-t border-white/10 pt-3 text-sm leading-relaxed text-white/75"
+                data-testid="node-content"
+              >
+                {nodeContent(selectedNode)}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-white/50">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                 {connections} connection{connections === 1 ? '' : 's'}
               </span>
+              {nodeSource(selectedNode) && (
+                <a
+                  href={nodeSource(selectedNode) as string}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-white/70 transition-colors hover:bg-white/10"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-node-paper" />
+                  source file
+                </a>
+              )}
             </div>
 
             <div className="mt-5 flex items-center gap-2">
