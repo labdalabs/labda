@@ -99,4 +99,11 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
+
+  // The OKF file tree mirrors the on-disk layout: nodes filed under
+  // type directories as .md files.
+  await page.getByRole('button', { name: 'Files' }).click();
+  const tree = page.getByTestId('okf-tree');
+  await expect(tree).toContainText('observations/');
+  await expect(tree).toContainText('.md');
 });

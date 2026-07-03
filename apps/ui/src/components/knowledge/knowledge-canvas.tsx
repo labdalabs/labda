@@ -40,6 +40,34 @@ const TYPE_DOT: Record<OkfNodeType, string> = {
 const SURFACE =
   'rounded-xl border border-white/10 bg-white/[0.055] shadow-xl backdrop-blur-md';
 
+// The OKF directory each node type files under — the same shape the export
+// bundle writes, so the tree browser mirrors the on-disk OKF layout.
+const OKF_DIR: Record<OkfNodeType, string> = {
+  Project: '',
+  Hypothesis: 'hypotheses',
+  Protocol: 'protocols',
+  Reference: 'references',
+  Notebook: 'notebooks',
+  Analysis: 'analyses',
+  Thesis: 'theses',
+  Idea: 'ideas',
+  Observation: 'observations',
+  Conclusion: 'conclusions',
+  Knowledge: 'knowledge',
+  Data: 'data',
+  Paper: 'papers',
+};
+
+// A node's OKF filename: a slug of its label + .md.
+function okfFileName(node: KnowledgeNode): string {
+  const slug = node.label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return `${slug || node.id.split(':')[1]?.slice(0, 8) || 'node'}.md`;
+}
+
 function CtrlIcon({ path }: { path: string }) {
   return (
     <svg
@@ -136,6 +164,7 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState('');
   const [controls, setControls] = useState<GraphControls | null>(null);
   // Node composer.
+  const [view, setView] = useState<'cells' | 'files'>('cells');
   const [composing, setComposing] = useState(false);
   const [nodeType, setNodeType] = useState<OkfNodeType>('Idea');
   const [nodeTitle, setNodeTitle] = useState('');
@@ -329,13 +358,76 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
 
       {/* Cells panel — the accessible, testable list. */}
       <div className={`absolute left-3 top-3 z-20 w-60 ${SURFACE}`}>
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-          <span className="text-xs font-medium text-white/80">Cells</span>
-          <span className="text-[11px] tabular-nums text-white/45">
-            {graph ? `${graph.nodes.length} · ${graph.edges.length} links` : '—'}
+        <div className="flex items-center gap-1 border-b border-white/10 px-2 py-1.5">
+          {(['cells', 'files'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                view === v
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+            >
+              {v === 'cells' ? 'Cells' : 'Files'}
+            </button>
+          ))}
+          <span className="ml-auto pr-1 text-[11px] tabular-nums text-white/40">
+            {graph ? `${graph.nodes.length}` : '—'}
           </span>
         </div>
+
+        {/* OKF file tree — nodes grouped by their on-disk directory. */}
+        {view === 'files' && (
+          <div className="max-h-[36vh] overflow-auto p-1.5" data-testid="okf-tree">
+            {loading ? (
+              <p className="px-2 py-1 text-xs text-white/45">Loading…</p>
+            ) : !graph?.nodes.length ? (
+              <p className="px-2 py-1 text-xs text-white/45">No files yet.</p>
+            ) : (
+              [...new Set(graph.nodes.map((n) => OKF_DIR[n.type] || 'nodes'))]
+                .sort()
+                .map((dir) => {
+                  const files = graph.nodes.filter(
+                    (n) => (OKF_DIR[n.type] || 'nodes') === dir,
+                  );
+                  return (
+                    <div key={dir} className="mb-1.5">
+                      <div className="px-1 py-0.5 text-[11px] uppercase tracking-wide text-white/40">
+                        {dir}/{' '}
+                        <span className="text-white/25">{files.length}</span>
+                      </div>
+                      <ul className="ml-1.5 border-l border-white/10 pl-2">
+                        {files.map((n) => (
+                          <li key={n.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleNodeClick(n)}
+                              title={n.label}
+                              className={`flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-[12px] ${
+                                selectedId === n.id
+                                  ? 'bg-white/[0.12] text-white'
+                                  : 'text-white/70 hover:bg-white/[0.06]'
+                              }`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${TYPE_DOT[n.type]}`}
+                              />
+                              <span className="truncate">{okfFileName(n)}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+        )}
+
         <ul
+          hidden={view !== 'cells'}
           className="max-h-[36vh] space-y-0.5 overflow-auto p-1.5"
           data-testid="graph-node-list"
         >
