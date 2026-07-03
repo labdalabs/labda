@@ -5,6 +5,7 @@ import {
   MessagePrimitive,
   type ToolCallMessagePartProps,
   ThreadPrimitive,
+  useMessagePartRuntime,
 } from '@assistant-ui/react';
 import { ArrowUp, Check, Loader2, Wrench } from 'lucide-react';
 
@@ -62,10 +63,66 @@ function ToolFallback({ toolName, status }: ToolCallMessagePartProps) {
   );
 }
 
+interface AskOption {
+  id: string;
+  label?: string;
+  description?: string;
+}
+
+// The agent's built-in `ask_question` is a human-in-the-loop request: it pauses
+// the turn for the researcher to choose. Render the prompt and its options as
+// buttons and answer through the runtime's approval response, which
+// @assistant-ui/eve maps back into the eve input request. (Without this it just
+// showed a generic tool chip that never resolved.)
+function AskQuestion({ args, status }: ToolCallMessagePartProps) {
+  const runtime = useMessagePartRuntime();
+  const a = (args ?? {}) as { prompt?: string; options?: AskOption[] };
+  const prompt = a.prompt ?? 'The agent has a question.';
+  const options = Array.isArray(a.options) ? a.options : [];
+  const answered = status?.type !== 'requires-action';
+
+  function answer(optionId: string) {
+    if (answered) return;
+    // The part runtime is scoped to this approval, so only the choice is needed.
+    runtime.respondToToolApproval({ optionId });
+  }
+
+  return (
+    <div
+      className="my-2 rounded-lg border border-dashed bg-background/60 p-3"
+      data-testid="ask-question"
+    >
+      <p className="text-sm font-medium">{prompt}</p>
+      {options.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              disabled={answered}
+              onClick={() => answer(o.id)}
+              title={o.description}
+              className="rounded-md border px-2.5 py-1.5 text-xs transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {o.label ?? o.id}
+            </button>
+          ))}
+        </div>
+      )}
+      {answered && (
+        <p className="mt-2 text-xs text-muted-foreground">Answered.</p>
+      )}
+    </div>
+  );
+}
+
 function AssistantParts() {
   return (
     <MessagePrimitive.Parts
-      components={{ Text: MarkdownText, tools: { Fallback: ToolFallback } }}
+      components={{
+        Text: MarkdownText,
+        tools: { by_name: { ask_question: AskQuestion }, Fallback: ToolFallback },
+      }}
     />
   );
 }

@@ -160,9 +160,10 @@
 
 @theme inline {
   /* Geist is loaded in layout.tsx as --font-geist-sans / --font-geist-mono;
-     headings echo the landing page's Avenir Next brand stack. */
+     headings use Nunito Sans (--font-nunito, bundled) — a geometric humanist in
+     the spirit of the brand's Avenir Next, which isn't web-available. */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Avenir Next', 'Avenir Next LT Pro', Avenir, 'Nunito Sans',
+  --font-heading: var(--font-nunito), 'Avenir Next', 'Nunito Sans',
     var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', monospace;
   --color-brand-sky: var(--brand-sky);

@@ -63,4 +63,11 @@ test('research agent chat streams a reply via the EVE proxy', async ({
   await expect(
     page.getByText('one Reference contradicts it', { exact: false }),
   ).toBeVisible();
+
+  // The agent's ask_question HITL renders as a question with option buttons.
+  const question = page.getByTestId('ask-question');
+  await expect(question).toBeVisible();
+  await expect(question).toContainText('Which aspect are you focusing on?');
+  await expect(question.getByRole('button', { name: 'Structure' })).toBeVisible();
+  await expect(question.getByRole('button', { name: 'Function' })).toBeVisible();
 });

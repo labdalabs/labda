@@ -596,9 +596,10 @@ export function GraphScene({
             addTendril(ex, ey, angle - spread, len * 0.62, -bow * 0.5, false);
           }
         };
-        // Neighbour directions first (capped), then free spines to fill it out.
-        const dirs = (neighborDirs.get(n.id) ?? []).slice(0, 6);
-        for (let k = dirs.length; k < Math.min(7, Math.max(4, dirs.length + 2)); k++) {
+        // Neighbour directions first (capped), then a few free spines to fill
+        // out the arbor — kept sparse so the graph stays readable.
+        const dirs = (neighborDirs.get(n.id) ?? []).slice(0, 5);
+        for (let k = dirs.length; k < Math.min(5, Math.max(3, dirs.length + 1)); k++) {
           dirs.push(k * 2.399 + i * 0.7);
         }
         dirs.forEach((ang, k) => {
@@ -782,7 +783,7 @@ export function GraphScene({
             ? 1
             : 0.85;
         if (c.ringMat) c.ringMat.opacity = 0.9 * c.dim;
-        const arborOp = 0.5 * c.dim * (hovered || isSel ? 1.4 : 1);
+        const arborOp = 0.42 * c.dim * (hovered || isSel ? 1.4 : 1);
         for (const m of c.arborMats) m.opacity = arborOp;
       }
 

@@ -55,8 +55,12 @@ const server = createServer(async (req, res) => {
       { type: 'message.appended', data: { messageDelta: full.slice(12), messageSoFar: full, sequence: 0, stepIndex: 0, turnId: T }, meta: { at } },
       { type: 'message.completed', data: { finishReason: 'stop', message: full, sequence: 0, stepIndex: 0, turnId: T }, meta: { at } },
       { type: 'step.completed', data: { finishReason: 'stop', sequence: 0, stepIndex: 0, turnId: T }, meta: { at } },
-      { type: 'turn.completed', data: { finishReason: 'stop', sequence: 0, turnId: T }, meta: { at } },
-      { type: 'session.waiting', data: { wait: 'next-user-message' }, meta: { at } },
+      // The agent's ask_question HITL: a tool call + an input request the UI
+      // should render as a question with clickable options.
+      { type: 'step.started', data: { sequence: 1, stepIndex: 1, turnId: T }, meta: { at } },
+      { type: 'actions.requested', data: { sequence: 1, stepIndex: 1, turnId: T, actions: [{ callId: 'q1', kind: 'tool-call', toolName: 'ask_question', input: { prompt: 'Which aspect are you focusing on?', options: [{ id: 'structure', label: 'Structure' }, { id: 'function', label: 'Function' }], allowFreeform: true } }] }, meta: { at } },
+      { type: 'input.requested', data: { sequence: 1, stepIndex: 1, turnId: T, requests: [{ requestId: 'q1', display: 'select', prompt: 'Which aspect are you focusing on?', allowFreeform: true, options: [{ id: 'structure', label: 'Structure', description: 'fold / misfolding' }, { id: 'function', label: 'Function', description: 'activity / binding' }] }] }, meta: { at } },
+      { type: 'session.waiting', data: { wait: 'input' }, meta: { at } },
     ];
     for (const e of events) res.write(JSON.stringify(e) + '\n');
     res.end();
