@@ -93,7 +93,10 @@ export function Workspace({ projectId }: { projectId: string }) {
             }
           >
             {t.kind === 'knowledge' ? (
-              <KnowledgeBoard projectId={projectId} />
+              <KnowledgeBoard
+                projectId={projectId}
+                active={t.key === activeKey}
+              />
             ) : t.kind === 'work' ? (
               <ProjectHome projectId={projectId} />
             ) : t.kind === 'settings' ? (

@@ -18,6 +18,10 @@ export interface PresenceUser {
 export function usePresence(
   projectId: string,
   focusedNodeId: string | null,
+  // When false (e.g. the board is an inactive workspace tab), leave the channel
+  // so you don't appear present/focused to collaborators while working
+  // elsewhere.
+  active = true,
 ): PresenceUser[] {
   const [others, setOthers] = useState<PresenceUser[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -28,8 +32,11 @@ export function usePresence(
   focusRef.current = focusedNodeId;
 
   useEffect(() => {
-    if (!projectId) return;
-    let active = true;
+    if (!projectId || !active) {
+      setOthers([]);
+      return;
+    }
+    let live = true;
     const supabase = createClient();
     let channel: RealtimeChannel | null = null;
 
@@ -37,7 +44,7 @@ export function usePresence(
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user || !active) return;
+      if (!user || !live) return;
       const name = (user.email ?? 'someone').split('@')[0];
       meRef.current = { id: user.id, name };
 
@@ -76,13 +83,14 @@ export function usePresence(
     })();
 
     return () => {
-      active = false;
+      live = false;
       if (channel) void supabase.removeChannel(channel);
       channelRef.current = null;
     };
-    // Re-join only when the project changes; focus updates re-track below via a
-    // separate effect (focusedNodeId is intentionally not a dep here).
-  }, [projectId]);
+    // Re-join when the project changes or the board becomes (in)active; focus
+    // updates re-track below via a separate effect (focusedNodeId intentionally
+    // not a dep here).
+  }, [projectId, active]);
 
   // Publish focus changes without rejoining the channel.
   useEffect(() => {

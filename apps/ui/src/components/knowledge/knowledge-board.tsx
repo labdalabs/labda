@@ -120,7 +120,13 @@ function isAuthored(n: KnowledgeNode): boolean {
 // The honeycomb knowledge board: nodes are hex cells you drag onto the grid to
 // build islands of knowledge; placing two side by side links them. Click a cell
 // to open its details in a right-side panel (edit / unlink / remove).
-export function KnowledgeBoard({ projectId }: { projectId: string }) {
+export function KnowledgeBoard({
+  projectId,
+  active = true,
+}: {
+  projectId: string;
+  active?: boolean;
+}) {
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -183,7 +189,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
   const selected = selectedId ? (byId.get(selectedId) ?? null) : null;
 
   // Live presence: who else is on this board, and which node each is focused on.
-  const others = usePresence(projectId, selectedId);
+  const others = usePresence(projectId, selectedId, active);
   const presenceByNode = new Map<string, typeof others>();
   for (const p of others) {
     if (!p.nodeId) continue;
