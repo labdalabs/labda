@@ -123,4 +123,19 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
   const tree = page.getByTestId('okf-tree');
   await expect(tree).toContainText('observations/');
   await expect(tree).toContainText('.md');
+
+  // Group nodes into a cluster — a Knowledge node linked to its members, which
+  // can then be linked to other nodes/clusters like anything else.
+  await page.getByRole('button', { name: 'Cells', exact: true }).click();
+  await page.getByTestId('group-mode-toggle').click();
+  await page.locator('[data-node-type="Hypothesis"] button').first().click();
+  await page.locator('[data-node-type="Observation"] button').first().click();
+  const bar = page.getByTestId('cluster-bar');
+  await expect(bar).toContainText('2 selected');
+  await bar.getByLabel('Cluster name').fill('Thermal stress');
+  await bar.getByRole('button', { name: 'Form cluster' }).click();
+  await expect(
+    page.locator('[data-testid="graph-node"][data-node-type="Knowledge"]'),
+  ).toHaveCount(1);
+  await expect(page.getByTestId('linked-count')).toContainText('3 user links');
 });

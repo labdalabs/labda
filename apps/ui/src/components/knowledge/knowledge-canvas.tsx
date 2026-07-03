@@ -192,6 +192,46 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const [nodeBody, setNodeBody] = useState('');
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [savingNode, setSavingNode] = useState(false);
+  // Cluster (group) mode.
+  const [groupMode, setGroupMode] = useState(false);
+  const [groupSel, setGroupSel] = useState<Set<string>>(new Set());
+  const [clusterName, setClusterName] = useState('');
+
+  // Group the selected nodes into a cluster: a Knowledge node linked to each
+  // member. The cluster is itself a node, so it can then be linked to other
+  // nodes or clusters like anything else.
+  async function handleCreateCluster() {
+    const members = [...groupSel];
+    if (members.length < 2 || !clusterName.trim()) return;
+    setSavingNode(true);
+    setError('');
+    try {
+      const cluster = await createKnowledgeNode({
+        projectId,
+        type: 'Knowledge',
+        title: clusterName.trim(),
+        content: `Cluster of ${members.length} nodes.`,
+      });
+      const clusterNodeId = `node:${cluster.id}`;
+      for (const m of members) {
+        await linkKnowledge({
+          projectId,
+          fromNodeId: clusterNodeId,
+          toNodeId: m,
+          label: 'member',
+        });
+      }
+      setGroupSel(new Set());
+      setClusterName('');
+      setGroupMode(false);
+      setStatus('Cluster formed');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setSavingNode(false);
+    }
+  }
 
   // Open a node's source file: resolve a short-lived signed URL for a private
   // Storage path, or open a plain URL directly.
@@ -222,6 +262,15 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   }, [refresh]);
 
   async function handleNodeClick(node: KnowledgeNode) {
+    if (groupMode) {
+      setGroupSel((prev) => {
+        const next = new Set(prev);
+        if (next.has(node.id)) next.delete(node.id);
+        else next.add(node.id);
+        return next;
+      });
+      return;
+    }
     if (linkMode) {
       if (!linkFromId) {
         setLinkFrom(node.id);
@@ -523,7 +572,13 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
                       : hoveredId === n.id
                         ? 'bg-white/[0.07]'
                         : ''
-                  } ${isFrom ? 'ring-1 ring-node-hypothesis' : ''}`}
+                  } ${
+                    groupSel.has(n.id)
+                      ? 'ring-1 ring-white/70'
+                      : isFrom
+                        ? 'ring-1 ring-node-hypothesis'
+                        : ''
+                  }`}
                 >
                   <span
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${TYPE_DOT[n.type]}`}
@@ -647,6 +702,35 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
         </div>
       )}
 
+      {/* Cluster bar — group the selected nodes into a Knowledge cluster. */}
+      {groupMode && (
+        <div className="absolute inset-x-0 top-3 z-40 flex justify-center px-3">
+          <div
+            className={`${SURFACE} flex w-full max-w-lg items-center gap-2 p-2.5`}
+            data-testid="cluster-bar"
+          >
+            <span className="pl-1 text-xs text-white/60">
+              {groupSel.size} selected — click nodes to group
+            </span>
+            <input
+              className="ml-auto w-40 rounded-md border border-white/15 bg-white/5 px-2.5 py-1.5 text-sm text-white placeholder:text-white/35 outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              placeholder="Cluster name"
+              aria-label="Cluster name"
+              value={clusterName}
+              onChange={(e) => setClusterName(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleCreateCluster}
+              disabled={savingNode || groupSel.size < 2 || !clusterName.trim()}
+              className="rounded-lg bg-white/95 px-3 py-1.5 text-sm font-medium text-[#0a0f1c] transition-colors hover:bg-white disabled:opacity-50"
+            >
+              {savingNode ? 'Forming…' : 'Form cluster'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar — minimal pills, top-right. */}
       <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
         <button
@@ -659,6 +743,20 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
         >
           <CtrlIcon path="M12 5v14M5 12h14" />
           Add node
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setGroupMode((v) => !v);
+            setGroupSel(new Set());
+          }}
+          data-testid="group-mode-toggle"
+          className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs shadow-sm transition-colors ${
+            groupMode ? 'bg-white text-[#0a0f1c]' : `${SURFACE} text-white/85 hover:bg-white/10`
+          }`}
+        >
+          <CtrlIcon path="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM17 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM7 8v5a4 4 0 0 0 4 4M17 8v5a4 4 0 0 1-4 4" />
+          {groupMode ? 'Grouping…' : 'Group'}
         </button>
         <button
           type="button"
