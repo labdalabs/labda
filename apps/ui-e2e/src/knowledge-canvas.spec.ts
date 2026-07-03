@@ -85,14 +85,24 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
   await composer
     .getByLabel('Node content')
     .fill('At 43°C, cells aggregate near the nucleus.');
+  // Import a source file (uploaded browser-direct to private Storage).
+  await composer.getByLabel('Source file').setInputFiles({
+    name: 'viability.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('temp,viability\n30,0.98\n45,0.12'),
+  });
+  await expect(composer.getByTestId('source-file-name')).toContainText(
+    'viability.csv',
+  );
   await composer.getByRole('button', { name: 'Add node' }).click();
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
 
-  // Focusing the authored node shows its markdown body in the dossier.
+  // Focusing the authored node shows its markdown body + the source file link.
   await page.locator('[data-node-type="Observation"] button').first().click();
   await expect(page.getByTestId('node-content')).toContainText('At 43°C');
+  await expect(page.getByTestId('node-source')).toBeVisible();
 
   // Link two nodes (Obsidian-like) and confirm it persists.
   await expect(page.getByTestId('linked-count')).toContainText('0 user links');

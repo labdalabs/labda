@@ -9,6 +9,7 @@ import {
   knowledgeGraph,
   linkKnowledge,
 } from '@/lib/knowledge/queries';
+import { createClient } from '@/lib/supabase/browser';
 import { useKnowledgeCanvas } from '@/lib/knowledge/store';
 import {
   AUTHORABLE_NODE_TYPES,
@@ -189,7 +190,22 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const [nodeType, setNodeType] = useState<OkfNodeType>('Idea');
   const [nodeTitle, setNodeTitle] = useState('');
   const [nodeBody, setNodeBody] = useState('');
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [savingNode, setSavingNode] = useState(false);
+
+  // Open a node's source file: resolve a short-lived signed URL for a private
+  // Storage path, or open a plain URL directly.
+  async function openSource(ref: string) {
+    if (/^https?:\/\//.test(ref)) {
+      window.open(ref, '_blank');
+      return;
+    }
+    const supabase = createClient();
+    const { data } = await supabase.storage
+      .from('knowledge-sources')
+      .createSignedUrl(ref, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -238,14 +254,31 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
     setSavingNode(true);
     setError('');
     try {
+      // Import a source file (pdf/csv/…): browser-direct upload to the private
+      // knowledge-sources bucket, under the caller's own prefix (owner RLS).
+      let sourceRef: string | undefined;
+      if (sourceFile) {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const path = `${user?.id}/${crypto.randomUUID()}-${sourceFile.name}`;
+        const { error: upErr } = await supabase.storage
+          .from('knowledge-sources')
+          .upload(path, sourceFile, { upsert: false });
+        if (upErr) throw new Error(`Source upload failed: ${upErr.message}`);
+        sourceRef = path;
+      }
       await createKnowledgeNode({
         projectId,
         type: nodeType,
         title: nodeTitle.trim(),
         content: nodeBody.trim() || undefined,
+        sourceRef,
       });
       setNodeTitle('');
       setNodeBody('');
+      setSourceFile(null);
       setComposing(false);
       setStatus('Node added to the tissue');
       await refresh();
@@ -354,15 +387,15 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
                 {connections} connection{connections === 1 ? '' : 's'}
               </span>
               {nodeSource(selectedNode) && (
-                <a
-                  href={nodeSource(selectedNode) as string}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openSource(nodeSource(selectedNode) as string)}
+                  data-testid="node-source"
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-white/70 transition-colors hover:bg-white/10"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-node-paper" />
                   source file
-                </a>
+                </button>
               )}
             </div>
 
@@ -581,6 +614,23 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
               value={nodeBody}
               onChange={(e) => setNodeBody(e.target.value)}
             />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-white/60">
+              <span className="rounded-md border border-white/15 px-2.5 py-1.5 transition-colors hover:bg-white/10">
+                Attach source file
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.csv,.tsv,.txt,.md,.json,.png,.jpg,.jpeg"
+                aria-label="Source file"
+                className="hidden"
+                onChange={(e) => setSourceFile(e.target.files?.[0] ?? null)}
+              />
+              {sourceFile && (
+                <span className="truncate text-white/75" data-testid="source-file-name">
+                  {sourceFile.name}
+                </span>
+              )}
+            </label>
             <div className="flex items-center gap-2">
               <button
                 type="submit"
