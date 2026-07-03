@@ -1,5 +1,15 @@
 import { Field, ID, InputType, ObjectType } from '@nestjs/graphql';
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+
+// Cap a persisted transcript at ~4MB of JSON so a single session can't grow an
+// unbounded jsonb blob.
+const MAX_TRANSCRIPT = 4_000_000;
 
 // ─── GraphQL object types ────────────────────────────────────────────────────
 
@@ -38,11 +48,13 @@ export class SaveAgentSessionInput {
 
   @Field()
   @IsString()
+  @MaxLength(MAX_TRANSCRIPT)
   transcript!: string;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_TRANSCRIPT)
   sessionState?: string;
 }
 

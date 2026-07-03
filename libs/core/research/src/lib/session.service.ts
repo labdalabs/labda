@@ -1,5 +1,11 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, desc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_CONNECTION, agentSession } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
@@ -11,6 +17,14 @@ import type {
 } from './session.models';
 
 type AgentSessionRow = typeof agentSession.$inferSelect;
+
+function parseJson(raw: string, field: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new BadRequestException(`${field} must be valid JSON`);
+  }
+}
 
 @Injectable()
 export class SessionService {
@@ -50,10 +64,16 @@ export class SessionService {
     projectId: string,
   ): Promise<AgentSessionDto[]> {
     await this.researchFacade.getProject(user, projectId);
+    // Sessions are private: a member sees only their own threads in the project.
     const rows = await this.db
       .select()
       .from(agentSession)
-      .where(eq(agentSession.projectId, projectId))
+      .where(
+        and(
+          eq(agentSession.projectId, projectId),
+          eq(agentSession.ownerId, user.id),
+        ),
+      )
       .orderBy(desc(agentSession.createdAt));
     return rows.map((row) => this.toDto(row));
   }
@@ -66,9 +86,11 @@ export class SessionService {
     await this.db
       .update(agentSession)
       .set({
-        transcript: JSON.parse(input.transcript),
+        transcript: parseJson(input.transcript, 'transcript'),
         sessionState:
-          input.sessionState != null ? JSON.parse(input.sessionState) : null,
+          input.sessionState != null
+            ? parseJson(input.sessionState, 'sessionState')
+            : null,
         updatedAt: new Date(),
       })
       .where(eq(agentSession.id, row.id));
@@ -95,11 +117,10 @@ export class SessionService {
       .from(agentSession)
       .where(eq(agentSession.id, id))
       .limit(1);
-    if (!row) {
+    // Sessions are private to their owner — a personal agent thread. Other
+    // project members can't read, overwrite, or delete it (404, don't reveal).
+    if (!row || row.ownerId !== user.id) {
       throw new NotFoundException('Agent session not found');
-    }
-    if (row.ownerId !== user.id) {
-      await this.researchFacade.getProject(user, row.projectId);
     }
     return row;
   }

@@ -300,23 +300,30 @@ export class KnowledgeService {
     await this.researchFacade.getProject(user, existing.projectId);
 
     const okfId = `node:${id}`;
-    await this.db.delete(knowledgeNode).where(eq(knowledgeNode.id, id));
-    await this.db
-      .delete(nodePosition)
-      .where(
-        and(
-          eq(nodePosition.projectId, existing.projectId),
-          eq(nodePosition.nodeId, okfId),
-        ),
-      );
-    await this.db
-      .delete(knowledgeLink)
-      .where(
-        or(
-          eq(knowledgeLink.fromNodeId, okfId),
-          eq(knowledgeLink.toNodeId, okfId),
-        ),
-      );
+    // Atomic: drop the node, its board position, and its links together. Links
+    // are scoped to the node's project so this can never touch another tenant.
+    await this.db.transaction(async (tx) => {
+      await tx.delete(knowledgeNode).where(eq(knowledgeNode.id, id));
+      await tx
+        .delete(nodePosition)
+        .where(
+          and(
+            eq(nodePosition.projectId, existing.projectId),
+            eq(nodePosition.nodeId, okfId),
+          ),
+        );
+      await tx
+        .delete(knowledgeLink)
+        .where(
+          and(
+            eq(knowledgeLink.projectId, existing.projectId),
+            or(
+              eq(knowledgeLink.fromNodeId, okfId),
+              eq(knowledgeLink.toNodeId, okfId),
+            ),
+          ),
+        );
+    });
     this.logger.log({ id }, 'Deleted knowledge node');
     return true;
   }

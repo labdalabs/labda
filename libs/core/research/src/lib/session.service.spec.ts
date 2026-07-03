@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DB_CONNECTION } from '@labda/core-common';
 import { mockDbConnection } from '@labda/core-common/testing';
@@ -106,7 +106,7 @@ describe('SessionService', () => {
       expect(researchFacade.getProject).not.toHaveBeenCalled();
     });
 
-    it('gates a non-owner caller on project membership', async () => {
+    it('rejects a non-owner caller — sessions are private', async () => {
       const now = new Date();
       db.limit.mockResolvedValueOnce([
         {
@@ -121,8 +121,28 @@ describe('SessionService', () => {
         },
       ]);
 
-      await service.saveSession(user, { id: 'sess-1', transcript: '[]' });
-      expect(researchFacade.getProject).toHaveBeenCalledWith(user, 'proj-1');
+      await expect(
+        service.saveSession(user, { id: 'sess-1', transcript: '[]' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects invalid JSON transcript with a 400', async () => {
+      const now = new Date();
+      db.limit.mockResolvedValueOnce([
+        {
+          id: 'sess-1',
+          projectId: 'proj-1',
+          ownerId: user.id,
+          goal: 'g',
+          transcript: [],
+          sessionState: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await expect(
+        service.saveSession(user, { id: 'sess-1', transcript: 'not-json' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('throws NotFound when the session is missing', async () => {
