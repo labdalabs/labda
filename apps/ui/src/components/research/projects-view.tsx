@@ -83,53 +83,70 @@ export function ProjectsView({
       {authenticated && (
       <form
         onSubmit={handleCreate}
-        className="space-y-5 rounded-xl border bg-card p-6 shadow-sm"
+        className="overflow-hidden rounded-2xl border bg-card shadow-sm"
         data-testid="create-project-form"
       >
-        <div>
-          <h2 className="font-heading text-lg font-semibold">New project</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            A workspace for a line of inquiry — hypotheses, protocols, and its
-            knowledge graph.
-          </p>
+        <div className="flex items-center gap-3 border-b bg-gradient-to-r from-brand-sky/10 via-brand-sky/[0.04] to-transparent px-6 py-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-sky/15 text-brand-sky">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <path d="M12 11v5M9.5 13.5h5" />
+            </svg>
+          </span>
+          <div>
+            <h2 className="font-heading text-base font-semibold leading-tight">
+              New project
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              A workspace for a line of inquiry — hypotheses, protocols, and its
+              knowledge graph.
+            </p>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <label
-            htmlFor="project-title"
-            className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            Title
-          </label>
-          <Input
-            id="project-title"
-            placeholder="e.g. CRISPR base-editing in maize"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            aria-label="Project title"
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label
-            htmlFor="project-description"
-            className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            Description <span className="normal-case text-muted-foreground/70">· optional</span>
-          </label>
-          <textarea
-            id="project-description"
-            className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-            placeholder="What question is this project chasing?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            aria-label="Project description"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <Button type="submit" disabled={creating || !title.trim()}>
-            {creating ? 'Creating…' : 'Create project'}
-          </Button>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="space-y-5 p-6">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="project-title"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Title
+            </label>
+            <Input
+              id="project-title"
+              placeholder="e.g. CRISPR base-editing in maize"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-label="Project title"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="project-description"
+              className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              Description{' '}
+              <span className="normal-case text-muted-foreground/70">· optional</span>
+            </label>
+            <textarea
+              id="project-description"
+              className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              placeholder="What question is this project chasing?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              aria-label="Project description"
+            />
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <Button
+              type="submit"
+              disabled={creating || !title.trim()}
+              className="bg-brand-sky text-white shadow-sm transition-colors hover:bg-brand-sky/90"
+            >
+              {creating ? 'Creating…' : 'Create project'}
+            </Button>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
         </div>
       </form>
       )}

@@ -53,11 +53,16 @@ export function NotebookEditor({
   const [kernelStatus, setKernelStatus] = useState<KernelStatus>('idle');
   const [runningId, setRunningId] = useState<string | null>(null);
   const [variables, setVariables] = useState<KernelVariable[]>([]);
-  const [kernelMode, setKernelMode] = useState<KernelMode>('pyodide');
-  const [jupyterUrl, setJupyterUrl] = useState(
-    process.env.NEXT_PUBLIC_JUPYTER_URL ?? '',
+  // Default to the hosted Jupyter server when one is configured; fall back to
+  // the in-browser Pyodide kernel only when there's no server URL.
+  const defaultJupyterUrl = process.env.NEXT_PUBLIC_JUPYTER_URL ?? '';
+  const [kernelMode, setKernelMode] = useState<KernelMode>(
+    defaultJupyterUrl ? 'jupyter' : 'pyodide',
   );
-  const [jupyterToken, setJupyterToken] = useState('');
+  const [jupyterUrl, setJupyterUrl] = useState(defaultJupyterUrl);
+  const [jupyterToken, setJupyterToken] = useState(
+    process.env.NEXT_PUBLIC_JUPYTER_TOKEN ?? '',
+  );
   const fileInput = useRef<HTMLInputElement>(null);
 
   function kernel() {
