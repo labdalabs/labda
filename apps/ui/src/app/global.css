@@ -113,22 +113,23 @@
   --success: oklch(0.696 0.17 162.48); /* emerald-500 */
   --warning: oklch(0.769 0.188 70.08); /* amber-500 */
 
-  /* Knowledge-graph node types — single source of truth for the canvas,
-     legends, and dots. Keep in sync with OkfNodeType. */
-  --node-project: #4a95cc; /* brand sky */
-  --node-hypothesis: #8b5cf6; /* violet */
-  --node-protocol: #10b981; /* emerald */
-  --node-reference: #f59e0b; /* amber */
-  --node-notebook: #14b8a6; /* teal — the computational record */
-  --node-analysis: #f43f5e; /* rose — results/insight */
-  --node-thesis: #6366f1; /* indigo — the write-up */
+  /* Knowledge-graph node types — a single muted, harmonious palette (not a
+     bright rainbow) so the board reads calm and clean. One source of truth for
+     the canvas, legends, and dots. Keep in sync with OkfNodeType. */
+  --node-project: #6f93b5; /* muted blue */
+  --node-hypothesis: #9689c0; /* muted violet */
+  --node-protocol: #69a68c; /* muted green */
+  --node-reference: #c4a06a; /* muted gold */
+  --node-notebook: #67a39f; /* muted teal */
+  --node-analysis: #c2828e; /* muted rose */
+  --node-thesis: #8388bb; /* muted indigo */
   /* User/agent-authored node types. */
-  --node-idea: #facc15; /* yellow — a spark */
-  --node-observation: #38bdf8; /* sky — what was seen */
-  --node-conclusion: #a3e635; /* lime — settled */
-  --node-knowledge: #d946ef; /* magenta — consolidated */
-  --node-data: #22d3ee; /* cyan — measurements */
-  --node-paper: #fb923c; /* orange — publication */
+  --node-idea: #bfaa6a; /* muted ochre */
+  --node-observation: #76a4c2; /* muted sky */
+  --node-conclusion: #9aaa78; /* muted olive */
+  --node-knowledge: #b186aa; /* muted mauve */
+  --node-data: #6fa6ab; /* muted cyan */
+  --node-paper: #c39479; /* muted terracotta */
 }
 
 .dark {

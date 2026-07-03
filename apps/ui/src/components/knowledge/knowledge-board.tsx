@@ -334,7 +334,7 @@ export function KnowledgeBoard({
             return (
               <div
                 key={`z${hkey(q, r)}`}
-                className="pointer-events-auto absolute border-2 border-dashed border-border bg-card/40 transition-colors hover:border-brand-sky/60 hover:bg-brand-sky/10"
+                className="pointer-events-auto absolute border border-dashed border-border/60 transition-colors hover:border-brand-sky hover:bg-brand-sky/5"
                 style={{
                   width: BOX_W,
                   height: BOX_H,
@@ -372,20 +372,19 @@ export function KnowledgeBoard({
                   left: x - BOX_W / 2,
                   top: y - BOX_H / 2,
                   clipPath: CLIP,
-                  background: `linear-gradient(155deg, color-mix(in srgb, ${color} 22%, white), color-mix(in srgb, ${color} 10%, white))`,
+                  // A whisper of the type colour on the card surface (theme
+                  // aware), a thin subtle edge, neutral text — calm, not candy.
+                  background: `color-mix(in srgb, ${color} 12%, var(--card))`,
                   boxShadow: sel
-                    ? `0 0 0 3px ${color}, 0 6px 18px rgba(30,41,59,.22)`
-                    : `inset 0 0 0 2px color-mix(in srgb, ${color} 55%, white), 0 2px 8px rgba(30,41,59,.10)`,
+                    ? `0 0 0 2px ${color}, 0 4px 14px rgba(0,0,0,.16)`
+                    : `inset 0 0 0 1px color-mix(in srgb, ${color} 36%, var(--border)), 0 1px 3px rgba(0,0,0,.06)`,
                 }}
                 data-testid="graph-node"
                 data-node-id={n.id}
                 data-node-type={n.type}
                 title={n.label}
               >
-                <span
-                  className="line-clamp-3 px-1 text-[11px] font-semibold leading-tight"
-                  style={{ color: `color-mix(in srgb, ${color} 62%, #1e293b)` }}
-                >
+                <span className="line-clamp-3 px-1 text-[11px] font-medium leading-tight text-foreground/85">
                   {n.label}
                 </span>
               </button>
