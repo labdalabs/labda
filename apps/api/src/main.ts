@@ -42,5 +42,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-// deploy: knowledge board mutations (NodePosition, node CRUD)
