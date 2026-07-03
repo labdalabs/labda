@@ -1,6 +1,9 @@
 'use client';
 
-import { useEveAgentRuntime } from '@assistant-ui/eve';
+import {
+  useEveAgentRuntime,
+  type UseEveAgentRuntimeOptions,
+} from '@assistant-ui/eve';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { Thread } from '@/components/assistant-ui/thread';
 
@@ -16,13 +19,23 @@ export function EveChat({
   projectId,
   goal,
   className,
+  initialEvents,
+  initialSession,
+  onEvent,
+  onSessionChange,
 }: {
   projectId?: string;
   goal?: string;
   className?: string;
+  // Persistence: seed a prior conversation and stream out new events so a
+  // caller can save the transcript (see SessionChat).
+  initialEvents?: UseEveAgentRuntimeOptions['initialEvents'];
+  initialSession?: UseEveAgentRuntimeOptions['initialSession'];
+  onEvent?: UseEveAgentRuntimeOptions['onEvent'];
+  onSessionChange?: UseEveAgentRuntimeOptions['onSessionChange'];
 }) {
-  const runtime = useEveAgentRuntime(
-    projectId
+  const runtime = useEveAgentRuntime({
+    ...(projectId
       ? {
           prepareSend: (input) => ({
             ...input,
@@ -34,8 +47,12 @@ export function EveChat({
               .join('\n'),
           }),
         }
-      : undefined,
-  );
+      : {}),
+    initialEvents,
+    initialSession,
+    onEvent,
+    onSessionChange,
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

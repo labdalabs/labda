@@ -13,6 +13,8 @@ import {
   KnowledgeEdge,
   KnowledgeNodeType,
   LinkNodesInput,
+  OkfFileContent,
+  OkfFileMeta,
   SetNodePositionInput,
   UpdateKnowledgeNodeInput,
   type OkfNodeTypeGql,
@@ -77,6 +79,30 @@ export class KnowledgeResolver {
       edges: edges.map(edgeToGql),
       neighbours: nbrs.map(nodeToGql),
     };
+  }
+
+  // Browse the OKF bundle as a flat list of files (metadata only).
+  @Query(() => [OkfFileMeta], { name: 'okfFiles' })
+  async okfFiles(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('projectId', { type: () => ID }) projectId: string,
+  ): Promise<OkfFileMeta[]> {
+    return this.knowledgeService.okfFiles(user, projectId);
+  }
+
+  // Read one OKF bundle file's markdown content by path.
+  @Query(() => OkfFileContent, { name: 'okfFile' })
+  async okfFile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('projectId', { type: () => ID }) projectId: string,
+    @Args('path') path: string,
+  ): Promise<OkfFileContent> {
+    const { path: filePath, content } = await this.knowledgeService.okfFile(
+      user,
+      projectId,
+      path,
+    );
+    return { path: filePath, content };
   }
 
   @Mutation(() => KnowledgeExport)

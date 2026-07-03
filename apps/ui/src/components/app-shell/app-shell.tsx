@@ -6,10 +6,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { listProjects } from '@/lib/research/queries';
 import { listProtocols } from '@/lib/protocol/queries';
-import { knowledgeGraph } from '@/lib/knowledge/queries';
+import { okfFiles, type OkfFileMeta } from '@/lib/knowledge/queries';
 import type { Project } from '@/lib/research/types';
 import type { Protocol } from '@/lib/protocol/types';
-import type { KnowledgeNode } from '@/lib/knowledge/types';
 import { useWorkspace } from '@/lib/workspace/store';
 
 // A persistent Linear/IDE-style shell: a left panel that manages the workspace
@@ -46,37 +45,6 @@ const ICONS = {
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   signout: 'M15 12H4m0 0 4-4m-4 4 4 4M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4',
 } as const;
-
-// OKF directory each node type lives under (Notebooks are their own section).
-const OKF_DIR: Record<string, string> = {
-  Hypothesis: 'hypotheses',
-  Protocol: 'protocols',
-  Reference: 'references',
-  Paper: 'references',
-  Analysis: 'analyses',
-  Thesis: 'thesis',
-  Idea: 'nodes',
-  Observation: 'nodes',
-  Conclusion: 'nodes',
-  Knowledge: 'nodes',
-  Data: 'nodes',
-};
-const slug = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40) || 'untitled';
-
-function nodeBody(n: KnowledgeNode): string {
-  try {
-    const c = (JSON.parse(n.attributes) as { content?: unknown }).content;
-    if (typeof c === 'string' && c.trim()) return c;
-  } catch {
-    /* no body */
-  }
-  return '';
-}
 
 function Row({
   icon,
@@ -147,7 +115,7 @@ export function AppShell({
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
-  const [nodes, setNodes] = useState<KnowledgeNode[]>([]);
+  const [files, setFiles] = useState<OkfFileMeta[]>([]);
 
   const activeKey = useWorkspace((s) => s.activeKey);
   const openTab = useWorkspace((s) => s.openTab);
@@ -161,15 +129,15 @@ export function AppShell({
   useEffect(() => {
     if (!email || !projectId) {
       setProtocols([]);
-      setNodes([]);
+      setFiles([]);
       return;
     }
     let live = true;
     listProtocols(projectId)
       .then((p) => live && setProtocols(p))
       .catch(() => undefined);
-    knowledgeGraph(projectId)
-      .then((g) => live && setNodes(g.nodes))
+    okfFiles(projectId)
+      .then((f) => live && setFiles(f))
       .catch(() => undefined);
     return () => {
       live = false;
@@ -178,13 +146,17 @@ export function AppShell({
 
   const activeProject = projects.find((p) => p.id === projectId);
 
-  // Files = every node except notebooks (those get their own section), grouped
-  // into OKF directories.
-  const files = nodes.filter((n) => n.type !== 'Notebook' && n.type !== 'Protocol');
-  const byDir = new Map<string, KnowledgeNode[]>();
-  for (const n of files) {
-    const dir = OKF_DIR[n.type] ?? 'nodes';
-    (byDir.get(dir) ?? byDir.set(dir, []).get(dir)!).push(n);
+  // OKF bundle files, grouped by directory. Notebooks/protocols get their own
+  // section above; dir index pages are noise in the tree.
+  const treeFiles = files.filter(
+    (f) =>
+      f.dir !== 'notebooks' &&
+      f.dir !== 'protocols' &&
+      !f.path.endsWith('index.md'),
+  );
+  const byDir = new Map<string, OkfFileMeta[]>();
+  for (const f of treeFiles) {
+    (byDir.get(f.dir) ?? byDir.set(f.dir, []).get(f.dir)!).push(f);
   }
 
   return (
@@ -278,8 +250,8 @@ export function AppShell({
                 ))
               )}
 
-              <SectionTitle icon="doc" title="Files" count={files.length} />
-              {files.length === 0 ? (
+              <SectionTitle icon="doc" title="Files" count={treeFiles.length} />
+              {treeFiles.length === 0 ? (
                 <p className="px-2.5 py-1 text-xs text-muted-foreground/70">
                   Add nodes in the graph
                 </p>
@@ -289,25 +261,24 @@ export function AppShell({
                     <p className="px-2.5 pt-1.5 font-mono text-[10px] text-muted-foreground/60">
                       {dir}/
                     </p>
-                    {items.map((n) => {
-                      const path = `${dir}/${slug(n.label)}.md`;
-                      const key = `file:${n.id}`;
+                    {items.map((f) => {
+                      const key = `file:${f.path}`;
                       return (
                         <Row
-                          key={n.id}
-                          label={`${slug(n.label)}.md`}
+                          key={f.path}
+                          label={f.title}
                           indent
                           active={activeKey === key}
-                          title={n.label}
+                          title={f.path}
                           onClick={() =>
                             openTab({
                               key,
                               kind: 'file',
-                              title: n.label,
-                              filePath: path,
-                              nodeId: n.id,
-                              nodeType: n.type,
-                              content: nodeBody(n),
+                              title: f.title,
+                              filePath: f.path,
+                              nodeId: f.nodeId ?? undefined,
+                              nodeType: f.dir,
+                              editable: f.editable,
                               closeable: true,
                             })
                           }

@@ -67,12 +67,26 @@ test('workspace: work home, sessions, files, and tabs', async ({ page }) => {
   ).toBeVisible();
 
   // The node shows up in the sidebar OKF file explorer; open it → a file tab.
-  const fileRow = page.getByRole('button', { name: /membrane-assay\.md/ });
+  const fileRow = page
+    .locator('aside')
+    .getByRole('button', { name: 'Membrane assay' });
   await expect(fileRow).toBeVisible();
   await fileRow.click();
   await expect(page.getByTestId('okf-file')).toBeVisible();
 
   // Four tabs open now: Work, the session, Knowledge, the file.
+  await expect(page.locator('[data-testid="tab"]')).toHaveCount(4);
+
+  // Inline-edit the file (edits the node body; the file re-renders).
+  await page.getByTestId('edit-file').click();
+  await page
+    .getByLabel('File content')
+    .fill('Assay measures membrane integrity at 42C.');
+  await page.getByTestId('save-file').click();
+  await expect(page.getByTestId('okf-file')).toContainText('membrane integrity');
+
+  // Open tabs persist across a full reload.
+  await page.reload();
   await expect(page.locator('[data-testid="tab"]')).toHaveCount(4);
 
   // Close the session tab.

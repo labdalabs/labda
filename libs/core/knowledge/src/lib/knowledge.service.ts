@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -23,7 +23,7 @@ import {
   type OkfGraph,
   type OkfNodeType,
 } from './okf';
-import { toOkfBundle, type OkfFile } from './okf-bundle';
+import { bundlePathForNode, toOkfBundle, type OkfFile } from './okf-bundle';
 
 type LinkRow = typeof knowledgeLink.$inferSelect;
 type NodeRow = typeof knowledgeNode.$inferSelect;
@@ -42,12 +42,23 @@ function countNotebookCells(notebook: string): number {
 const OKF_BUCKET = 'knowledge-okf';
 const SIGNED_URL_TTL_SEC = 60 * 60;
 // Where the agent fetches a local OKF copy to browse (issue #18).
-const OKF_LOCAL_DIR = process.env.OKF_LOCAL_DIR ?? '/tmp/labda';
+const OKF_LOCAL_DIR = process.env['OKF_LOCAL_DIR'] ?? '/tmp/labda';
 
 export interface OkfLocalExport {
   dir: string;
   files: string[];
 }
+
+// Browsable metadata for one file of the OKF bundle (see okfFiles).
+export interface OkfFileMetaData {
+  path: string;
+  title: string;
+  dir: string;
+  editable: boolean;
+  nodeId: string | null;
+}
+
+const NODE_PREFIX = 'node:';
 
 @Injectable()
 export class KnowledgeService {
@@ -435,5 +446,54 @@ export class KnowledgeService {
     projectId: string,
   ): Promise<OkfFile[]> {
     return toOkfBundle(await this.knowledgeGraph(user, projectId));
+  }
+
+  // ── OKF bundle as browsable files (read-only over the derived graph) ──
+
+  // One metadata entry per bundle file: its path, a human title, its directory,
+  // whether it is editable (author-first KnowledgeNode files only), and the
+  // backing KnowledgeNode id (for the updateKnowledgeNode mutation). Gated by
+  // project membership via knowledgeGraph.
+  async okfFiles(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<OkfFileMetaData[]> {
+    const graph = await this.knowledgeGraph(user, projectId);
+    const files = toOkfBundle(graph);
+    // Key each node by the path it renders to, using the SAME mapping the
+    // bundle uses — no duplicated path logic.
+    const nodeByPath = new Map(
+      graph.nodes.map((n) => [bundlePathForNode(n), n] as const),
+    );
+
+    return files.map((f) => {
+      const slash = f.path.lastIndexOf('/');
+      const dir = slash >= 0 ? f.path.slice(0, slash) : '';
+      const base = slash >= 0 ? f.path.slice(slash + 1) : f.path;
+      const node = nodeByPath.get(f.path);
+      const editable = !!node && node.id.startsWith(NODE_PREFIX);
+      const nodeId = editable ? node!.id.slice(NODE_PREFIX.length) : null;
+      const title =
+        base === 'index.md'
+          ? dir || 'Index'
+          : (node?.label ?? base.replace(/\.md$/, ''));
+      return { path: f.path, title, dir, editable, nodeId };
+    });
+  }
+
+  // The markdown content of a single bundle file, by path. Throws NotFound when
+  // no file renders to that path. Gated by project membership via
+  // knowledgeGraph.
+  async okfFile(
+    user: AuthenticatedUser,
+    projectId: string,
+    path: string,
+  ): Promise<OkfFile> {
+    const files = toOkfBundle(await this.knowledgeGraph(user, projectId));
+    const file = files.find((f) => f.path === path);
+    if (!file) {
+      throw new NotFoundException(`No OKF file at path: ${path}`);
+    }
+    return file;
   }
 }

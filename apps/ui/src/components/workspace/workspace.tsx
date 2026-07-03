@@ -5,9 +5,9 @@ import { useWorkspace } from '@/lib/workspace/store';
 import { KnowledgeBoard } from '@/components/knowledge/knowledge-board';
 import { ProjectSettings } from '@/components/research/project-settings';
 import { NotebookEditor } from '@/components/protocol/notebook-editor';
-import { EveChat } from '@/components/eve/eve-chat';
 import { ProjectHome } from './project-home';
 import { OkfFileView } from './okf-file-view';
+import { SessionChat } from './session-chat';
 
 // The tabbed project workspace (VS Code-style). The sidebar explorer opens tabs
 // here; each open tab stays mounted (so notebooks, sessions, and the board keep
@@ -83,14 +83,12 @@ export function Workspace({ projectId }: { projectId: string }) {
               <NotebookEditor protocolId={t.protocolId} projectId={projectId} />
             ) : t.kind === 'file' ? (
               <OkfFileView tab={t} />
-            ) : t.kind === 'session' ? (
-              <div className="mx-auto max-w-3xl p-6">
-                <EveChat
-                  projectId={projectId}
-                  goal={t.goal}
-                  className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-lg border"
-                />
-              </div>
+            ) : t.kind === 'session' && t.sessionId ? (
+              <SessionChat
+                projectId={projectId}
+                sessionId={t.sessionId}
+                goal={t.goal}
+              />
             ) : null}
           </div>
         ))}

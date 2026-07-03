@@ -51,6 +51,13 @@ function filePath(node: OkfNode): string {
   return `${DIR[node.type]}/${localId(node.id)}.md`;
 }
 
+// Public: the bundle path a graph node maps to. This is the single source of
+// truth for node → path used both to render the bundle and to key files back to
+// their node (e.g. for titles + editability in the GraphQL browse API).
+export function bundlePathForNode(node: OkfNode): string {
+  return filePath(node);
+}
+
 // Relative markdown link from `fromPath` to the concept file for `to`.
 function linkTo(fromPath: string, to: OkfNode): string {
   const target = filePath(to);

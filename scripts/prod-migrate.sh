@@ -21,24 +21,27 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-# DDL over the session pooler, not the transaction pooler.
+# DDL over the session pooler (:5432), not the transaction pooler (:6543).
 MIGRATE_URL="${DATABASE_URL/:6543/:5432}"
+# psql (libpq) rejects Supabase's `?supa=...` query param — strip the query and
+# force SSL. The pg driver (drizzle) is fine with the full URL.
+PSQL_URL="${MIGRATE_URL%%\?*}?sslmode=require"
 
 echo "== 1. extensions (pgmq + pgvector) + queue =="
-psql "$MIGRATE_URL" -c "create extension if not exists pgmq cascade;"
-psql "$MIGRATE_URL" -c "create extension if not exists vector;"
-psql "$MIGRATE_URL" -c "select pgmq.create('reference.embed');" || echo "  (queue already exists — ok)"
+psql "$PSQL_URL" -c "create extension if not exists pgmq cascade;"
+psql "$PSQL_URL" -c "create extension if not exists vector;"
+psql "$PSQL_URL" -c "select pgmq.create('reference.embed');" || echo "  (queue already exists — ok)"
 
 echo "== 2. drizzle migrate (app tables) =="
 ( cd apps/api && DATABASE_URL="$MIGRATE_URL" pnpm exec drizzle-kit migrate --config=drizzle.config.ts )
 
 echo "== 3. storage buckets =="
-psql "$MIGRATE_URL" -c "insert into storage.buckets (id, name, public) values
+psql "$PSQL_URL" -c "insert into storage.buckets (id, name, public) values
   ('analysis-exports','analysis-exports',false),
   ('knowledge-okf','knowledge-okf',false),
   ('reference-pdfs','reference-pdfs',false)
   on conflict (id) do nothing;"
 
 echo "== 4. verify =="
-psql "$MIGRATE_URL" -c "\dt public.*"
+psql "$PSQL_URL" -c "\dt public.*"
 echo "Done."

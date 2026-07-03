@@ -238,6 +238,32 @@ export const knowledgeNode = pgTable(
   (table) => [index('KnowledgeNode_projectId_idx').on(table.projectId)],
 );
 
+// ─── agent context (persistent EVE agent sessions) ─────────────────────────
+
+// A saved EVE agent thread scoped to a Project + goal. The full chat transcript
+// (and optional agent session state) is persisted so a thread survives reloads.
+// `transcript`/`sessionState` are stored as jsonb: the resolver boundary accepts
+// them as JSON strings, JSON.parse into these columns on write and JSON.stringify
+// back to a string on read (transcript defaults to the empty array []).
+export const agentSession = pgTable(
+  'AgentSession',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    goal: text().notNull(),
+    transcript: jsonb().$type<unknown>().notNull().default([]),
+    sessionState: jsonb().$type<unknown>(),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('AgentSession_projectId_idx').on(table.projectId)],
+);
+
 // Hex-grid board position of a knowledge-graph node within a Project. `nodeId`
 // is the OKF node id (e.g. "node:<uuid>" or "hypothesis:<uuid>"), so any node —
 // authored, hypothesis, protocol, reference — can be placed on the board.

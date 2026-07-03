@@ -11,6 +11,8 @@ import { SemanticScholarClient } from './literature/semantic-scholar.client';
 import { ResearchFacade } from './research.facade';
 import { ResearchResolver } from './research.resolver';
 import { ResearchService } from './research.service';
+import { SessionResolver } from './session.resolver';
+import { SessionService } from './session.service';
 
 @Module({
   imports: [
@@ -23,6 +25,9 @@ import { ResearchService } from './research.service';
     ResearchService,
     ResearchFacade,
     ResearchResolver,
+    // agent-session concern
+    SessionService,
+    SessionResolver,
     CreateProjectTool,
     ListProjectsTool,
     // literature concern

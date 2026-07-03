@@ -97,6 +97,38 @@ export async function setNodePosition(input: {
   return data.setNodePosition;
 }
 
+export interface OkfFileMeta {
+  path: string;
+  title: string;
+  dir: string;
+  editable: boolean;
+  nodeId: string | null;
+}
+
+// The real OKF bundle rendered from the project graph — a browsable file tree.
+export async function okfFiles(projectId: string): Promise<OkfFileMeta[]> {
+  const data = await graphql<{ okfFiles: OkfFileMeta[] }>(
+    `query OkfFiles($projectId: ID!) {
+      okfFiles(projectId: $projectId) { path title dir editable nodeId }
+    }`,
+    { projectId },
+  );
+  return data.okfFiles;
+}
+
+export async function okfFile(
+  projectId: string,
+  path: string,
+): Promise<{ path: string; content: string }> {
+  const data = await graphql<{ okfFile: { path: string; content: string } }>(
+    `query OkfFile($projectId: ID!, $path: String!) {
+      okfFile(projectId: $projectId, path: $path) { path content }
+    }`,
+    { projectId, path },
+  );
+  return data.okfFile;
+}
+
 export async function exportKnowledge(
   projectId: string,
 ): Promise<{ url: string; path: string }> {

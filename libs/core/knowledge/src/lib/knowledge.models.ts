@@ -94,6 +94,26 @@ export class KnowledgeLocalExport {
 }
 
 @ObjectType()
+export class OkfFileMeta {
+  // Bundle-relative path, e.g. `hypotheses/<id>.md` or `nodes/<uuid>.md`.
+  @Field() path!: string;
+  // Human title for the file (the source node's label, or the dir/"Index").
+  @Field() title!: string;
+  // The path's directory (e.g. `hypotheses`, `nodes`, `` for the root index).
+  @Field() dir!: string;
+  // True only for author-first files (KnowledgeNode-backed, `node:` ids).
+  @Field() editable!: boolean;
+  // For editable files, the KnowledgeNode DB id (uuid after `node:`); else null.
+  @Field(() => String, { nullable: true }) nodeId?: string | null;
+}
+
+@ObjectType()
+export class OkfFileContent {
+  @Field() path!: string;
+  @Field() content!: string;
+}
+
+@ObjectType()
 export class KnowledgeLinkType {
   @Field(() => ID) id!: string;
   @Field(() => ID) fromNodeId!: string;
