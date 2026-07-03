@@ -86,15 +86,24 @@ export class KnowledgeService {
     const referencesByHypothesis: GraphInputs['referencesByHypothesis'] = {};
     const stancesByHypothesis: GraphInputs['stancesByHypothesis'] = {};
 
-    for (const h of hypotheses) {
-      const refs = await this.researchFacade.listReferences(user, h.id);
+    // Fan out per-hypothesis work concurrently (references + challenge findings
+    // in parallel), rather than a sequential nested await per hypothesis — this
+    // path also backs every okfFile read, so its latency compounds.
+    const perHypothesis = await Promise.all(
+      hypotheses.map(async (h) => {
+        const [refs, findings] = await Promise.all([
+          this.researchFacade.listReferences(user, h.id),
+          this.copilotFacade.challengeHypothesis(user, h.id),
+        ]);
+        return { h, refs, findings };
+      }),
+    );
+    for (const { h, refs, findings } of perHypothesis) {
       referencesByHypothesis[h.id] = refs.map((r) => ({
         id: r.id,
         title: r.title,
         url: r.url,
       }));
-
-      const findings = await this.copilotFacade.challengeHypothesis(user, h.id);
       stancesByHypothesis[h.id] = findings
         .filter(
           (f) =>
