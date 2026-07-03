@@ -17,6 +17,7 @@ import {
 } from '@/lib/knowledge/queries';
 import { addHypothesis } from '@/lib/research/queries';
 import { createProtocol } from '@/lib/protocol/queries';
+import { HypothesisReferences } from '@/components/research/hypothesis-references';
 import {
   AUTHORABLE_NODE_TYPES,
   type KnowledgeEdge,
@@ -557,6 +558,10 @@ function NodePanel({
     node.type === 'Protocol' || node.type === 'Notebook'
       ? node.id.split(':')[1]
       : null;
+  // A Hypothesis cell surfaces its literature search + attached references +
+  // the grounded challenge (re-homed from the retired overview).
+  const hypothesisId =
+    node.type === 'Hypothesis' ? node.id.replace(/^hypothesis:/, '') : null;
 
   const links = edges
     .filter(
@@ -668,6 +673,12 @@ function NodePanel({
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {hypothesisId && (
+          <div className="border-t border-border pt-4" data-testid="hypothesis-literature">
+            <HypothesisReferences hypothesisId={hypothesisId} />
           </div>
         )}
       </div>
