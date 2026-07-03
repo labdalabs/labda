@@ -22,7 +22,7 @@ import {
   type OkfNodeType,
 } from '@/lib/knowledge/types';
 
-// An octagon cell's fill/edge colour, from the --node-* design tokens.
+// A hex cell's fill/edge colour, from the --node-* design tokens.
 const TYPE_VAR: Record<OkfNodeType, string> = {
   Project: '--node-project',
   Hypothesis: '--node-hypothesis',
@@ -39,21 +39,28 @@ const TYPE_VAR: Record<OkfNodeType, string> = {
   Paper: '--node-paper',
 };
 
-const SIZE = 96; // octagon bounding box
-const GAP = 8;
-const CELL = SIZE + GAP; // square-grid spacing
-const CLIP =
-  'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)';
-// Octagons tile a square grid, touching on their four straight edges.
+// Pointy-top hexagons packed into a honeycomb (axial coords). The rendered box
+// is a hair smaller than the lattice spacing, so cells read as distinct tiles
+// with a clean hairline gutter rather than fusing into a solid mass.
+const SIZE = 56; // hex "radius" (lattice spacing)
+const GAP = 5;
+const HEX_W = Math.sqrt(3) * SIZE;
+const HEX_H = 2 * SIZE;
+const BOX_W = HEX_W - GAP;
+const BOX_H = HEX_H - GAP;
+const CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+// Six honeycomb neighbours (touching edges).
 const DIRS: [number, number][] = [
   [1, 0],
-  [-1, 0],
-  [0, 1],
+  [1, -1],
   [0, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, 1],
 ];
 
 function cellToPixel(q: number, r: number) {
-  return { x: q * CELL, y: r * CELL };
+  return { x: HEX_W * (q + r / 2), y: 1.5 * SIZE * r };
 }
 const hkey = (q: number, r: number) => `${q},${r}`;
 
@@ -72,7 +79,7 @@ function isAuthored(n: KnowledgeNode): boolean {
   return n.id.startsWith('node:');
 }
 
-// The octagon knowledge board: nodes are cells you drag onto the grid to
+// The honeycomb knowledge board: nodes are hex cells you drag onto the grid to
 // build islands of knowledge; placing two side by side links them. Click a cell
 // to open its details in a right-side panel (edit / unlink / remove).
 export function KnowledgeBoard({ projectId }: { projectId: string }) {
@@ -253,10 +260,10 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                 key={`z${hkey(q, r)}`}
                 className="pointer-events-auto absolute border-2 border-dashed border-slate-300/80 bg-white/40 transition-colors hover:border-brand-sky/60 hover:bg-brand-sky/10"
                 style={{
-                  width: SIZE,
-                  height: SIZE,
-                  left: x - SIZE / 2,
-                  top: y - SIZE / 2,
+                  width: BOX_W,
+                  height: BOX_H,
+                  left: x - BOX_W / 2,
+                  top: y - BOX_H / 2,
                   clipPath: CLIP,
                 }}
                 onDragOver={(e) => e.preventDefault()}
@@ -284,10 +291,10 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                 onClick={() => setSelectedId(n.id)}
                 className="pointer-events-auto absolute flex flex-col items-center justify-center p-2 text-center transition-transform hover:z-10 hover:scale-[1.04]"
                 style={{
-                  width: SIZE,
-                  height: SIZE,
-                  left: x - SIZE / 2,
-                  top: y - SIZE / 2,
+                  width: BOX_W,
+                  height: BOX_H,
+                  left: x - BOX_W / 2,
+                  top: y - BOX_H / 2,
                   clipPath: CLIP,
                   background: `linear-gradient(155deg, color-mix(in srgb, ${color} 22%, white), color-mix(in srgb, ${color} 10%, white))`,
                   boxShadow: sel
@@ -324,7 +331,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                     .map((p) => p.name)
                     .join(', ')} viewing`}
                   className="pointer-events-none absolute z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] font-bold text-[#0a0f1c]"
-                  style={{ left: x + SIZE / 2 - 14, top: y - SIZE / 2 + 6 }}
+                  style={{ left: x + BOX_W / 2 - 14, top: y - BOX_H / 2 + 6 }}
                 >
                   {presenceByNode.get(n.id)!.length}
                 </span>
