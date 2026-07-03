@@ -17,16 +17,28 @@ function eveBase(): string {
 
 async function forward(req: NextRequest, path: string[]): Promise<Response> {
   const supabase = await createClient();
+  // Validate the user server-side, then read the token to forward. Browsing is
+  // public but the assistant is not — short-circuit with a clear 401 rather than
+  // forwarding an anonymous request that the agent opaquely rejects.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const {
     data: { session },
   } = await supabase.auth.getSession();
   const token = session?.access_token;
+  if (!user || !token) {
+    return Response.json(
+      { error: 'Sign in to use the research assistant.' },
+      { status: 401 },
+    );
+  }
 
   const target = `${eveBase()}/eve/v1/${path.join('/')}${req.nextUrl.search}`;
   const headers: Record<string, string> = {
     'content-type': req.headers.get('content-type') ?? 'application/json',
+    authorization: `Bearer ${token}`,
   };
-  if (token) headers.authorization = `Bearer ${token}`;
 
   const upstream = await fetch(target, {
     method: req.method,

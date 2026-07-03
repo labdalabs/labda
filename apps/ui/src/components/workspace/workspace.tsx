@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { getProject } from '@/lib/research/queries';
 import { useWorkspace } from '@/lib/workspace/store';
 import { KnowledgeBoard } from '@/components/knowledge/knowledge-board';
 import { ProjectSettings } from '@/components/research/project-settings';
@@ -20,13 +22,48 @@ export function Workspace({ projectId }: { projectId: string }) {
   const setActive = useWorkspace((s) => s.setActive);
   const closeTab = useWorkspace((s) => s.closeTab);
 
+  const [access, setAccess] = useState<'checking' | 'ok' | 'denied'>(
+    'checking',
+  );
+
   useEffect(() => {
     setProject(projectId);
   }, [projectId, setProject]);
 
+  // Verify access up front so an inaccessible/deleted project shows a real
+  // message instead of an empty shell (every data call swallows its error).
+  useEffect(() => {
+    let live = true;
+    setAccess('checking');
+    getProject(projectId)
+      .then(() => live && setAccess('ok'))
+      .catch(() => live && setAccess('denied'));
+    return () => {
+      live = false;
+    };
+  }, [projectId]);
+
+  if (access === 'denied') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-lg font-semibold">Project not available</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          It may have been deleted, or you don&rsquo;t have access. Ask the owner
+          to share it with you.
+        </p>
+        <Link
+          href="/app"
+          className="text-sm font-medium text-brand-sky underline"
+        >
+          Back to projects
+        </Link>
+      </div>
+    );
+  }
+
   // Until the store has switched to this project, don't render — otherwise the
   // previous project's tabs (and their data fetches) would briefly mount here.
-  if (storeProjectId !== projectId) {
+  if (storeProjectId !== projectId || access === 'checking') {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         Loading…
@@ -85,13 +122,18 @@ export function Workspace({ projectId }: { projectId: string }) {
       </div>
 
       <div className="relative min-h-0 flex-1">
-        {tabs.map((t) => (
-          <div
-            key={t.key}
-            className={
-              t.key === activeKey ? 'absolute inset-0 overflow-auto' : 'hidden'
-            }
-          >
+        {tabs.map((t) => {
+          const isActive = t.key === activeKey;
+          // Session (EVE runtime) and notebook (kernel) tabs are expensive, so
+          // mount them only while active — they rehydrate from persisted state
+          // on return. Light tabs stay mounted to keep their in-memory state.
+          const heavy = t.kind === 'session' || t.kind === 'notebook';
+          if (heavy && !isActive) return null;
+          return (
+            <div
+              key={t.key}
+              className={isActive ? 'absolute inset-0 overflow-auto' : 'hidden'}
+            >
             {t.kind === 'knowledge' ? (
               <KnowledgeBoard
                 projectId={projectId}
@@ -112,8 +154,9 @@ export function Workspace({ projectId }: { projectId: string }) {
                 goal={t.goal}
               />
             ) : null}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
