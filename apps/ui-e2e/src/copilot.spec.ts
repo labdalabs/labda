@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { seedHypothesisAndOpen } from './support/graph';
 
 const MAILPIT = 'http://127.0.0.1:54324';
 
@@ -47,9 +48,7 @@ test('Hypothesis with a contradicting Reference → challenge → grounded contr
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page.getByLabel('Hypothesis statement').fill('CRISPR increases crop yield');
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
-  await expect(page.getByText('CRISPR increases crop yield')).toBeVisible();
+  await seedHypothesisAndOpen(page, 'CRISPR increases crop yield');
 
   // The stub corpus (s2-stub) returns papers about CRISPR yield; search + attach
   // a Reference. (The stub's first paper is about CRISPR increasing yield; the
@@ -84,8 +83,7 @@ test('Hypothesis challenge surfaces a grounded contradiction with a source link'
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page.getByLabel('Hypothesis statement').fill('CRISPR increases crop yield');
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
+  await seedHypothesisAndOpen(page, 'CRISPR increases crop yield');
 
   // s2-stub's second paper is about off-target effects; but to deterministically
   // exercise the contradiction path we search + attach both stub papers.

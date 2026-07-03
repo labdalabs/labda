@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { seedHypothesisAndOpen } from './support/graph';
 
 const MAILPIT = 'http://127.0.0.1:54324';
 
@@ -44,9 +45,7 @@ test('attach an open-access paper → download a valid PDF', async ({ page }) =>
   await page.getByLabel('Project title').fill(projectTitle);
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
-  await page.getByLabel('Hypothesis statement').fill('CRISPR increases yield');
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
-  await expect(page.getByText('CRISPR increases yield')).toBeVisible();
+  await seedHypothesisAndOpen(page, 'CRISPR increases yield');
 
   const panel = page.getByTestId('hypothesis-references').first();
   await panel.getByLabel('Literature search query').fill('CRISPR yield');
