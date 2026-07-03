@@ -201,18 +201,12 @@ interface Dendrite {
   mat: THREE.LineBasicMaterial;
   baseOpacity: number;
   dim: number;
-  pulse: {
-    sprite: THREE.Sprite;
-    mat: THREE.SpriteMaterial;
-    pts: THREE.Vector3[];
-    speed: number;
-    phase: number;
-  } | null;
 }
 
-// three.js rendering of the knowledge graph as living neural tissue. Cells glow
-// and breathe; dendrites connect related cells (closer = more related, per the
-// force layout) and fire pulses along semantic ties. Clicking a cell focuses
+// three.js rendering of the knowledge graph as neural tissue. Cells glow;
+// dendrites connect related cells (closer = more related, per the force
+// layout). The scene is static at rest — only interaction animates (hover
+// glow, focus dive/bloom). Clicking a cell focuses
 // it — the camera dives in, the cell blooms, its neighbours stay lit and the
 // rest of the tissue recedes. Purely visual: it subscribes to the same zustand
 // store the DOM overlay drives, so the two stay in sync. Guarded so a WebGL-less
@@ -289,7 +283,6 @@ export function GraphScene({
     let panY = 0;
     let targetZoom = 1;
     let zoom = 1;
-    let driftAmp = 1; // ambient drift strength; eases to 0 while focused
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -406,8 +399,7 @@ export function GraphScene({
         degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
       }
 
-      // ── Dendrites: glowing filaments; semantic ties carry a firing pulse ──
-      const pulseTex = track(radialTexture('rgba(233,247,255,1)', 0.25));
+      // ── Dendrites: glowing filaments connecting related cells ──
       for (let i = 0; i < graph.edges.length; i++) {
         const e = graph.edges[i];
         const a = posOf(e.from);
@@ -436,31 +428,12 @@ export function GraphScene({
         line.position.z = -0.3;
         group.add(line);
 
-        let pulse: Dendrite['pulse'] = null;
-        if (style.fires) {
-          const pMat = track(
-            new THREE.SpriteMaterial({
-              map: pulseTex,
-              color: style.color,
-              transparent: true,
-              opacity: 0,
-              blending: THREE.AdditiveBlending,
-              depthWrite: false,
-            }),
-          );
-          const sprite = new THREE.Sprite(pMat);
-          sprite.scale.setScalar(0.7);
-          sprite.position.z = -0.25;
-          group.add(sprite);
-          pulse = { sprite, mat: pMat, pts, speed: 0.16 + (i % 5) * 0.02, phase: (i * 0.37) % 1 };
-        }
         dendrites.push({
           from: e.from,
           to: e.to,
           mat,
           baseOpacity: style.opacity,
           dim: 1,
-          pulse,
         });
       }
 
@@ -727,9 +700,7 @@ export function GraphScene({
     resize.observe(mount);
 
     let raf = 0;
-    const start = performance.now();
     const animate = () => {
-      const t = (performance.now() - start) / 1000;
       const { selectedId, linkMode, positions, graph } =
         useKnowledgeCanvas.getState();
       const isFocused = !!selectedId && !linkMode;
@@ -743,13 +714,6 @@ export function GraphScene({
           if (e.to === selectedId) lit.add(e.from);
         }
       }
-
-      // Ambient drift: the whole tissue sways slowly, like a field under the
-      // microscope — then stills when a cell is focused so attention can land.
-      driftAmp = lerp(driftAmp, isFocused ? 0 : 1, 0.05);
-      group.position.x = driftAmp * (Math.sin(t * 0.11) * 0.5 + Math.sin(t * 0.07 + 1.3) * 0.3);
-      group.position.y = driftAmp * (Math.cos(t * 0.09) * 0.45 + Math.sin(t * 0.13 + 2.1) * 0.22);
-      group.rotation.z = driftAmp * 0.02 * Math.sin(t * 0.05);
 
       // Camera: dive onto the focused cell, else ease toward the user's pan.
       const focusP = isFocused && selectedId ? positions[selectedId] : null;
@@ -769,15 +733,12 @@ export function GraphScene({
         c.dim = lerp(c.dim, dimTarget, 0.12);
         c.bloom = lerp(c.bloom, isFocused && isSel ? 1.7 : 1, 0.12);
 
-        const breath = 1 + 0.035 * Math.sin(t * 1.3 + c.phase);
-        c.group.scale.setScalar(breath * c.bloom);
+        c.group.scale.setScalar(c.bloom);
 
         const emph = hovered || isSel ? 1.35 : 1;
         c.haloMat.opacity = (isSel ? 0.6 : hovered ? 0.5 : 0.32) * c.dim;
         c.halo.scale.setScalar(
-          (c.id === selectedId ? 4.8 : 4.2) *
-            (c.group.scale.x / c.bloom) *
-            (hovered ? 1.15 : 1),
+          (c.id === selectedId ? 4.8 : 4.2) * (hovered ? 1.15 : 1),
         );
         c.membraneMat.opacity = 0.92 * c.dim * emph;
         c.nucleusMat.opacity = 0.9 * c.dim * emph;
@@ -803,15 +764,6 @@ export function GraphScene({
         const litEdge = !isFocused || (lit.has(d.from) && lit.has(d.to));
         d.dim = lerp(d.dim, litEdge ? 1 : 0.06, 0.12);
         d.mat.opacity = d.baseOpacity * d.dim * (isFocused && litEdge ? 1.5 : 1);
-        if (d.pulse) {
-          const u = (t * d.pulse.speed + d.pulse.phase) % 1;
-          const pt = d.pulse.pts[Math.min(d.pulse.pts.length - 1, Math.floor(u * (d.pulse.pts.length - 1)))];
-          d.pulse.sprite.position.set(pt.x, pt.y, -0.25);
-          // Pulse brightens in the middle of its run, fades at the ends.
-          const bright = Math.sin(u * Math.PI);
-          d.pulse.mat.opacity = bright * 0.9 * d.dim * (isFocused && litEdge ? 1.4 : 1);
-          d.pulse.sprite.scale.setScalar(0.55 + bright * 0.35);
-        }
       }
 
       renderer.render(scene, camera);
