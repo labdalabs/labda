@@ -287,7 +287,7 @@ export function KnowledgeBoard({
 
   return (
     <section
-      className="relative flex h-full min-h-[520px] w-full overflow-hidden bg-[#eef2f8] text-slate-800"
+      className="relative flex h-full min-h-[520px] w-full overflow-hidden bg-muted/30 text-foreground"
       data-testid="knowledge-canvas"
     >
       {/* Who's here — live participants on this board. */}
@@ -334,7 +334,7 @@ export function KnowledgeBoard({
             return (
               <div
                 key={`z${hkey(q, r)}`}
-                className="pointer-events-auto absolute border-2 border-dashed border-slate-300/80 bg-white/40 transition-colors hover:border-brand-sky/60 hover:bg-brand-sky/10"
+                className="pointer-events-auto absolute border-2 border-dashed border-border bg-card/40 transition-colors hover:border-brand-sky/60 hover:bg-brand-sky/10"
                 style={{
                   width: BOX_W,
                   height: BOX_H,
@@ -520,7 +520,7 @@ export function KnowledgeBoard({
       {(status || error) && (
         <div
           className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-md px-3 py-1.5 text-xs shadow-lg ${
-            error ? 'bg-destructive text-white' : 'bg-slate-800 text-white'
+            error ? 'bg-destructive text-white' : 'bg-foreground text-background'
           }`}
         >
           {error || status}

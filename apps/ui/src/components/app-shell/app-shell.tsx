@@ -10,6 +10,7 @@ import { okfFiles, type OkfFileMeta } from '@/lib/knowledge/queries';
 import type { Project } from '@/lib/research/types';
 import type { Protocol } from '@/lib/protocol/types';
 import { useWorkspace } from '@/lib/workspace/store';
+import { ThemeToggle } from './theme-toggle';
 
 // A persistent Linear/IDE-style shell: a left panel that manages the workspace
 // (project switcher) and, inside a project, an explorer that opens tabs in the
@@ -303,6 +304,7 @@ export function AppShell({
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                 {email}
               </span>
+              <ThemeToggle />
               <form method="POST" action="/auth/sign-out">
                 <button
                   type="submit"
@@ -315,12 +317,15 @@ export function AppShell({
               </form>
             </div>
           ) : (
-            <Link
-              href="/auth/sign-in"
-              className="flex items-center justify-center rounded-md bg-brand-sky px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-sky/90"
-            >
-              Sign in
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/auth/sign-in"
+                className="flex flex-1 items-center justify-center rounded-md bg-brand-sky px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-sky/90"
+              >
+                Sign in
+              </Link>
+              <ThemeToggle />
+            </div>
           )}
         </div>
       </aside>
