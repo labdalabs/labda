@@ -51,7 +51,9 @@ test('research agent chat streams a reply via the EVE proxy', async ({
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page.getByTestId('open-assistant').click();
+  // The research agent is a Work session now.
+  await page.getByLabel('Session goal').fill('Challenge my hypothesis');
+  await page.getByTestId('start-session').click();
   await expect(page.getByTestId('eve-chat')).toBeVisible();
 
   // The assistant-ui composer is a textarea; Enter submits the turn.
