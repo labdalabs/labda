@@ -101,7 +101,7 @@ export function ProjectHome({ projectId }: { projectId: string }) {
           onChange={(e) => setGoal(e.target.value)}
           placeholder="What should the agent work on?"
           aria-label="Session goal"
-          className="min-h-24 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="min-h-24 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
         <Button
           type="submit"

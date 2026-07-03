@@ -97,7 +97,9 @@ function SectionTitle({
       <Icon path={ICONS[icon]} className="h-3.5 w-3.5" />
       <span>{title}</span>
       {count !== undefined && (
-        <span className="text-muted-foreground/70">{count}</span>
+        <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums normal-case text-muted-foreground">
+          {count}
+        </span>
       )}
     </div>
   );
@@ -229,7 +231,7 @@ export function AppShell({
 
               <SectionTitle icon="notebook" title="Notebooks" count={protocols.length} />
               {protocols.length === 0 ? (
-                <p className="px-2.5 py-1 text-xs text-muted-foreground/70">None yet</p>
+                <p className="px-2.5 py-1 text-xs text-muted-foreground">None yet</p>
               ) : (
                 protocols.map((p) => (
                   <Row
@@ -252,13 +254,13 @@ export function AppShell({
 
               <SectionTitle icon="doc" title="Files" count={treeFiles.length} />
               {treeFiles.length === 0 ? (
-                <p className="px-2.5 py-1 text-xs text-muted-foreground/70">
+                <p className="px-2.5 py-1 text-xs text-muted-foreground">
                   Add nodes in the graph
                 </p>
               ) : (
                 [...byDir.entries()].map(([dir, items]) => (
                   <div key={dir} className="space-y-0.5">
-                    <p className="px-2.5 pt-1.5 font-mono text-[10px] text-muted-foreground/60">
+                    <p className="px-2.5 pt-1.5 font-mono text-[10px] text-muted-foreground">
                       {dir}/
                     </p>
                     {items.map((f) => {

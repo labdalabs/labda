@@ -457,7 +457,7 @@ export function KnowledgeBoard({
               ))}
             </div>
             <input
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               placeholder="Title"
               aria-label="Node title"
               value={nodeTitle}
@@ -584,7 +584,7 @@ function NodePanel({
 
   return (
     <div
-      className="absolute inset-y-0 right-0 z-30 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl backdrop-blur-md"
+      className="absolute inset-y-0 right-0 z-30 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl"
       data-testid="node-panel"
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">

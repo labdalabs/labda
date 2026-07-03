@@ -76,7 +76,7 @@ export function ProjectsView({
           <Link href="/auth/sign-in" className="underline">
             Sign in
           </Link>{' '}
-          to create Projects and use the copilot.
+          to create projects and use the copilot.
         </div>
       )}
 
@@ -130,7 +130,7 @@ export function ProjectsView({
             </label>
             <textarea
               id="project-description"
-              className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               placeholder="What question is this project chasing?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -153,22 +153,34 @@ export function ProjectsView({
 
       {authenticated && (
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Your Projects</h2>
+        <h2 className="text-lg font-semibold">Your projects</h2>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <ul className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <li
+                key={i}
+                className="h-[4.75rem] animate-pulse rounded-xl border bg-muted/40"
+              />
+            ))}
+          </ul>
         ) : projects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No Projects yet.</p>
+          <div className="rounded-xl border border-dashed bg-card/40 p-8 text-center">
+            <p className="text-sm font-medium">No projects yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create your first project above to start a line of inquiry.
+            </p>
+          </div>
         ) : (
           <ul className="space-y-2" data-testid="project-list">
             {projects.map((p) => (
               <li key={p.id}>
                 <Link
                   href={`/app/projects/${p.id}`}
-                  className="block rounded-md border bg-card p-4 hover:bg-muted/40"
+                  className="block rounded-xl border bg-card p-4 shadow-sm transition-all hover:border-brand-sky/30 hover:shadow-md"
                 >
                   <span className="font-medium">{p.title}</span>
                   {p.description && (
-                    <span className="block text-sm text-muted-foreground">
+                    <span className="mt-0.5 block text-sm text-muted-foreground">
                       {p.description}
                     </span>
                   )}

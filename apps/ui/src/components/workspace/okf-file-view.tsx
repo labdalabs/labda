@@ -104,7 +104,7 @@ export function OkfFileView({ tab }: { tab: WorkspaceTab }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             aria-label="File content"
-            className="min-h-[24rem] w-full rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="min-h-[24rem] w-full rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <div className="flex gap-2">
             <Button size="sm" disabled={busy} onClick={save} data-testid="save-file">
