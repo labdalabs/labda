@@ -140,3 +140,54 @@ test('knowledge board: independent islands', async ({ page }) => {
   await expect(panel).toBeVisible();
   await expect(panel).not.toContainText('Alpha island');
 });
+
+// Create real project entities (Hypothesis, Protocol) straight from the graph
+// composer — no separate overview form — and open a Protocol's notebook.
+test('knowledge board: create hypothesis + protocol in the graph', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const email = `graphcreate_${Date.now()}@lab.test`;
+  await signIn(page, email);
+
+  await page.goto('/app');
+  const projectTitle = `GraphCreate ${Date.now()}`;
+  await page.getByLabel('Project title').fill(projectTitle);
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
+
+  await page.getByTestId('open-graph').click();
+  await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
+
+  const create = async (type: string, title: string) => {
+    await page.getByTestId('add-node-toggle').click();
+    const composer = page.getByTestId('node-composer');
+    await composer.getByRole('button', { name: type, exact: true }).click();
+    await composer.getByLabel('Node title').fill(title);
+    await composer.getByRole('button', { name: 'Add' }).click();
+    await expect(
+      page.getByTestId('tray-node').filter({ hasText: title }).first(),
+    ).toBeVisible();
+  };
+
+  // A Hypothesis entity, created in the graph.
+  await create('Hypothesis', 'Yield rises with N');
+  await expect(
+    page.locator('[data-testid="tray-node"][data-node-type="Hypothesis"]'),
+  ).toHaveCount(1);
+
+  // A Protocol entity (which also spawns its notebook) — place it and open the
+  // notebook.
+  await create('Protocol', 'Field trial 2026');
+  await page
+    .locator('[data-testid="tray-node"][data-node-type="Protocol"]')
+    .dragTo(page.getByTestId('hex-drop').first());
+  await page
+    .locator('[data-testid="graph-node"][data-node-type="Protocol"]')
+    .click();
+  const panel = page.getByTestId('node-panel');
+  await expect(panel).toBeVisible();
+  const open = panel.getByTestId('open-notebook');
+  await expect(open).toBeVisible();
+  await expect(open).toHaveAttribute('href', /\/protocols\//);
+});

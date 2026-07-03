@@ -14,6 +14,8 @@ import {
   unlinkKnowledge,
   updateKnowledgeNode,
 } from '@/lib/knowledge/queries';
+import { addHypothesis } from '@/lib/research/queries';
+import { createProtocol } from '@/lib/protocol/queries';
 import {
   AUTHORABLE_NODE_TYPES,
   type KnowledgeEdge,
@@ -21,6 +23,16 @@ import {
   type KnowledgeNode,
   type OkfNodeType,
 } from '@/lib/knowledge/types';
+
+// What the graph composer can create. Hypothesis and Protocol are real project
+// entities (created via their own mutations); the rest are authored OKF nodes.
+// Creating them here — not on a separate overview screen — is the single place
+// to add anything to a project.
+const CREATABLE_TYPES: OkfNodeType[] = [
+  'Hypothesis',
+  'Protocol',
+  ...AUTHORABLE_NODE_TYPES,
+];
 
 // A hex cell's fill/edge colour, from the --node-* design tokens.
 const TYPE_VAR: Record<OkfNodeType, string> = {
@@ -206,16 +218,19 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!nodeTitle.trim()) return;
+    const title = nodeTitle.trim();
+    if (!title) return;
     try {
-      await createKnowledgeNode({
-        projectId,
-        type: nodeType,
-        title: nodeTitle.trim(),
-      });
+      if (nodeType === 'Hypothesis') {
+        await addHypothesis({ projectId, statement: title });
+      } else if (nodeType === 'Protocol' || nodeType === 'Notebook') {
+        await createProtocol({ projectId, title });
+      } else {
+        await createKnowledgeNode({ projectId, type: nodeType, title });
+      }
       setNodeTitle('');
       setComposing(false);
-      setStatus('Node added — drag it onto the board');
+      setStatus('Added — drag it onto the board');
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
@@ -404,7 +419,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
             data-testid="node-composer"
           >
             <div className="flex flex-wrap gap-1">
-              {AUTHORABLE_NODE_TYPES.map((t) => (
+              {CREATABLE_TYPES.map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -519,6 +534,12 @@ function NodePanel({
   const [content, setContent] = useState(nodeContent(node) ?? '');
   const [busy, setBusy] = useState(false);
   const authored = isAuthored(node);
+  // Protocol/Notebook nodes carry the protocol id after the colon → open the
+  // notebook editor for it.
+  const notebookId =
+    node.type === 'Protocol' || node.type === 'Notebook'
+      ? node.id.split(':')[1]
+      : null;
 
   const links = edges
     .filter(
@@ -663,6 +684,10 @@ function NodePanel({
               Edit
             </Button>
           )
+        ) : notebookId ? (
+          <span className="text-[11px] text-muted-foreground">
+            Jupyter notebook.
+          </span>
         ) : (
           <span className="text-[11px] text-muted-foreground">Derived from a project entity.</span>
         )}
@@ -679,14 +704,23 @@ function NodePanel({
             Remove
           </button>
         )}
-        {!authored && (
-          <Link
-            href={`/app/projects/${projectId}`}
-            className="ml-auto text-xs text-muted-foreground underline"
-          >
-            Open entity
-          </Link>
-        )}
+        {!authored &&
+          (notebookId ? (
+            <Link
+              href={`/app/projects/${projectId}/protocols/${notebookId}`}
+              className="ml-auto rounded-md bg-brand-sky px-2.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-sky/90"
+              data-testid="open-notebook"
+            >
+              Open notebook →
+            </Link>
+          ) : (
+            <Link
+              href={`/app/projects/${projectId}`}
+              className="ml-auto text-xs text-muted-foreground underline"
+            >
+              Open entity
+            </Link>
+          ))}
       </div>
     </div>
   );
