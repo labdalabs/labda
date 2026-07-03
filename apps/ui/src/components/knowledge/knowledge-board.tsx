@@ -40,14 +40,16 @@ const TYPE_VAR: Record<OkfNodeType, string> = {
 };
 
 // Pointy-top hexagons packed into a honeycomb (axial coords). The rendered box
-// is a hair smaller than the lattice spacing, so cells read as distinct tiles
-// with a clean hairline gutter rather than fusing into a solid mass.
+// is a uniform scale of the lattice cell (NOT a fixed pixel inset — a hex is
+// taller than wide, so subtracting a constant would leave uneven gutters). A
+// uniform scale keeps every cell a regular hexagon with an equal gutter on all
+// six edges.
 const SIZE = 56; // hex "radius" (lattice spacing)
-const GAP = 5;
+const SCALE = 0.94;
 const HEX_W = Math.sqrt(3) * SIZE;
 const HEX_H = 2 * SIZE;
-const BOX_W = HEX_W - GAP;
-const BOX_H = HEX_H - GAP;
+const BOX_W = HEX_W * SCALE;
+const BOX_H = HEX_H * SCALE;
 const CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
 // Six honeycomb neighbours (touching edges).
 const DIRS: [number, number][] = [
