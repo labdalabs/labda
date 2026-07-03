@@ -42,10 +42,14 @@ export default function SignInPage() {
         shouldCreateUser: true,
         // Make the email's magic link return to THIS origin (localhost in dev,
         // the deployed domain in prod) rather than a fixed Site URL. The URL
-        // must be allow-listed in Supabase → Auth → URL Configuration.
+        // must be allow-listed in Supabase → Auth → URL Configuration. In the
+        // desktop (Electron) app, tag it `?desktop=1` so the callback bounces
+        // the PKCE code back into the app via the labda:// deep link.
         emailRedirectTo:
           typeof window !== 'undefined'
-            ? `${window.location.origin}/auth/callback`
+            ? `${window.location.origin}/auth/callback${
+                /electron/i.test(navigator.userAgent) ? '?desktop=1' : ''
+              }`
             : undefined,
       },
     });

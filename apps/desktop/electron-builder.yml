@@ -1,5 +1,11 @@
 appId: com.labda.desktop
 productName: Labda
+# Custom URL scheme for magic-link deep links (labda://auth?code=…). Writes the
+# CFBundleURLTypes entry into the packaged app's Info.plist.
+protocols:
+  - name: Labda
+    schemes:
+      - labda
 directories:
   output: release
 files:

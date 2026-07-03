@@ -13,6 +13,37 @@ const APP_URL =
 const RETRY_DELAY_MS = 1500;
 
 let mainWindow: BrowserWindow | null = null;
+// A deep link that arrived before the window was ready (cold start).
+let pendingDeepLink: string | null = null;
+
+// Custom-protocol sign-in (magic link → PKCE). The email link opens the system
+// browser, which can't finish PKCE (no code_verifier there). The web callback
+// bounces the code back to us as `labda://auth?code=…`; we load the callback in
+// THIS window — whose cookie jar holds the verifier from when it started the
+// sign-in — so the exchange succeeds and the app is signed in.
+function handleDeepLink(url: string): void {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'labda:') return;
+    const code = u.searchParams.get('code');
+    if (!code) return;
+    const next = u.searchParams.get('next') ?? '/app';
+    const origin = new URL(APP_URL).origin;
+    const callback = `${origin}/auth/callback?code=${encodeURIComponent(
+      code,
+    )}&next=${encodeURIComponent(next)}`;
+    if (mainWindow) {
+      void mainWindow.loadURL(callback);
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      pendingDeepLink = callback;
+    }
+  } catch {
+    // Ignore malformed deep links.
+  }
+}
 
 function isInAppUrl(url: string): boolean {
   try {
@@ -67,13 +98,28 @@ function createWindow(): void {
     mainWindow = null;
   });
 
-  void mainWindow.loadURL(APP_URL);
+  // A cold-start magic-link deep link loads the callback directly.
+  const initial = pendingDeepLink ?? APP_URL;
+  pendingDeepLink = null;
+  void mainWindow.loadURL(initial);
 }
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  // Register the labda:// scheme so macOS routes magic-link deep links to us.
+  // (Packaged builds also declare it in Info.plist via electron-builder.)
+  app.setAsDefaultProtocolClient('labda');
+
+  // macOS delivers deep links via open-url — early for a cold start, live when
+  // the app is already running. Registered at load so a cold-start link isn't
+  // missed.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleDeepLink(url);
+  });
+
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
