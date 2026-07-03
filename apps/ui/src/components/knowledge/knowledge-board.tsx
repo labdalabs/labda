@@ -22,7 +22,7 @@ import {
   type OkfNodeType,
 } from '@/lib/knowledge/types';
 
-// A hex cell's fill/edge colour, from the --node-* design tokens.
+// An octagon cell's fill/edge colour, from the --node-* design tokens.
 const TYPE_VAR: Record<OkfNodeType, string> = {
   Project: '--node-project',
   Hypothesis: '--node-hypothesis',
@@ -39,21 +39,21 @@ const TYPE_VAR: Record<OkfNodeType, string> = {
   Paper: '--node-paper',
 };
 
-const SIZE = 48; // hex "radius"
-const HEX_W = Math.sqrt(3) * SIZE;
-const HEX_H = 2 * SIZE;
-const CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+const SIZE = 96; // octagon bounding box
+const GAP = 8;
+const CELL = SIZE + GAP; // square-grid spacing
+const CLIP =
+  'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)';
+// Octagons tile a square grid, touching on their four straight edges.
 const DIRS: [number, number][] = [
   [1, 0],
-  [1, -1],
-  [0, -1],
   [-1, 0],
-  [-1, 1],
   [0, 1],
+  [0, -1],
 ];
 
-function axialToPixel(q: number, r: number) {
-  return { x: HEX_W * (q + r / 2), y: (3 / 2) * SIZE * r };
+function cellToPixel(q: number, r: number) {
+  return { x: q * CELL, y: r * CELL };
 }
 const hkey = (q: number, r: number) => `${q},${r}`;
 
@@ -72,7 +72,7 @@ function isAuthored(n: KnowledgeNode): boolean {
   return n.id.startsWith('node:');
 }
 
-// The hexagonal knowledge board: nodes are hex cells you drag onto the grid to
+// The octagon knowledge board: nodes are cells you drag onto the grid to
 // build islands of knowledge; placing two side by side links them. Click a cell
 // to open its details in a right-side panel (edit / unlink / remove).
 export function KnowledgeBoard({ projectId }: { projectId: string }) {
@@ -119,7 +119,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
   const occupied = new Map<string, string>(); // "q,r" -> nodeId
   for (const n of placed) occupied.set(hkey(pos[n.id].q, pos[n.id].r), n.id);
 
-  // Empty hexes adjacent to any placed node are the drop zones (grow islands);
+  // Empty cells adjacent to any placed node are the drop zones (grow islands);
   // the origin seeds an empty board.
   const dropZones = new Map<string, { q: number; r: number }>();
   if (placed.length === 0) dropZones.set(hkey(0, 0), { q: 0, r: 0 });
@@ -206,7 +206,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
 
   return (
     <section
-      className="relative flex h-full min-h-[520px] w-full overflow-hidden bg-[#070b14] text-white/90"
+      className="relative flex h-full min-h-[520px] w-full overflow-hidden bg-[#eef2f8] text-slate-800"
       data-testid="knowledge-canvas"
     >
       {/* Who's here — live participants on this board. */}
@@ -219,7 +219,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
             <span
               key={p.userId}
               title={`${p.name}${p.nodeId ? ' · focused on a cell' : ''}`}
-              className="flex h-6 w-6 items-center justify-center rounded-full border border-white/25 bg-emerald-400/20 text-[10px] font-semibold text-white/90 shadow-sm"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 text-[10px] font-semibold text-emerald-800 shadow-sm"
             >
               {p.name.slice(0, 2).toUpperCase()}
             </span>
@@ -233,7 +233,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         className="relative flex-1 cursor-grab touch-none overflow-hidden active:cursor-grabbing"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 50% 40%, rgba(30,45,80,0.5), transparent 60%)',
+            'radial-gradient(circle at 50% 42%, rgba(74,149,204,0.10), transparent 62%)',
         }}
         onPointerDown={onBgDown}
         onPointerMove={onBgMove}
@@ -247,16 +247,16 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         >
           {/* Drop zones */}
           {[...dropZones.values()].map(({ q, r }) => {
-            const { x, y } = axialToPixel(q, r);
+            const { x, y } = cellToPixel(q, r);
             return (
               <div
                 key={`z${hkey(q, r)}`}
-                className="pointer-events-auto absolute rounded-[6px] border-2 border-dashed border-white/15 bg-white/[0.02] transition-colors hover:border-white/40 hover:bg-white/[0.06]"
+                className="pointer-events-auto absolute border-2 border-dashed border-slate-300/80 bg-white/40 transition-colors hover:border-brand-sky/60 hover:bg-brand-sky/10"
                 style={{
-                  width: HEX_W,
-                  height: HEX_H,
-                  left: x - HEX_W / 2,
-                  top: y - HEX_H / 2,
+                  width: SIZE,
+                  height: SIZE,
+                  left: x - SIZE / 2,
+                  top: y - SIZE / 2,
                   clipPath: CLIP,
                 }}
                 onDragOver={(e) => e.preventDefault()}
@@ -272,7 +272,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
           {/* Placed nodes */}
           {placed.map((n) => {
             const { q, r } = pos[n.id];
-            const { x, y } = axialToPixel(q, r);
+            const { x, y } = cellToPixel(q, r);
             const color = `var(${TYPE_VAR[n.type]})`;
             const sel = selectedId === n.id;
             return (
@@ -284,15 +284,15 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                 onClick={() => setSelectedId(n.id)}
                 className="pointer-events-auto absolute flex flex-col items-center justify-center p-2 text-center transition-transform hover:z-10 hover:scale-[1.04]"
                 style={{
-                  width: HEX_W,
-                  height: HEX_H,
-                  left: x - HEX_W / 2,
-                  top: y - HEX_H / 2,
+                  width: SIZE,
+                  height: SIZE,
+                  left: x - SIZE / 2,
+                  top: y - SIZE / 2,
                   clipPath: CLIP,
-                  background: `linear-gradient(160deg, color-mix(in srgb, ${color} 34%, #0a0f1c), color-mix(in srgb, ${color} 14%, #0a0f1c))`,
+                  background: `linear-gradient(155deg, color-mix(in srgb, ${color} 22%, white), color-mix(in srgb, ${color} 10%, white))`,
                   boxShadow: sel
-                    ? `0 0 0 3px #fff, 0 0 22px ${color}`
-                    : `inset 0 0 0 2px color-mix(in srgb, ${color} 70%, transparent)`,
+                    ? `0 0 0 3px ${color}, 0 6px 18px rgba(30,41,59,.22)`
+                    : `inset 0 0 0 2px color-mix(in srgb, ${color} 55%, white), 0 2px 8px rgba(30,41,59,.10)`,
                 }}
                 data-testid="graph-node"
                 data-node-id={n.id}
@@ -300,8 +300,8 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                 title={n.label}
               >
                 <span
-                  className="line-clamp-3 px-1 text-[11px] font-medium leading-tight text-white/95"
-                  style={{ textShadow: '0 1px 3px rgba(0,0,0,.8)' }}
+                  className="line-clamp-3 px-1 text-[11px] font-semibold leading-tight"
+                  style={{ color: `color-mix(in srgb, ${color} 62%, #1e293b)` }}
                 >
                   {n.label}
                 </span>
@@ -314,7 +314,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
             .filter((n) => presenceByNode.has(n.id))
             .map((n) => {
               const { q, r } = pos[n.id];
-              const { x, y } = axialToPixel(q, r);
+              const { x, y } = cellToPixel(q, r);
               return (
                 <span
                   key={`p${n.id}`}
@@ -324,7 +324,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                     .map((p) => p.name)
                     .join(', ')} viewing`}
                   className="pointer-events-none absolute z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] font-bold text-[#0a0f1c]"
-                  style={{ left: x + HEX_W / 2 - 14, top: y - HEX_H / 2 + 6 }}
+                  style={{ left: x + SIZE / 2 - 14, top: y - SIZE / 2 + 6 }}
                 >
                   {presenceByNode.get(n.id)!.length}
                 </span>
@@ -334,13 +334,13 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
       </div>
 
       {/* Tray of unplaced nodes */}
-      <div className="absolute left-3 top-3 z-20 flex max-h-[70vh] w-56 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] shadow-xl backdrop-blur-md">
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-          <span className="text-xs font-medium text-white/80">Nodes to place</span>
+      <div className="absolute left-3 top-3 z-20 flex max-h-[70vh] w-56 flex-col overflow-hidden rounded-xl border bg-card shadow-lg">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <span className="text-xs font-medium">Nodes to place</span>
           <button
             type="button"
             onClick={() => setComposing((v) => !v)}
-            className="rounded-md px-1.5 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+            className="rounded-md px-1.5 text-base text-muted-foreground hover:bg-muted hover:text-foreground"
             data-testid="add-node-toggle"
             aria-label="New node"
           >
@@ -350,7 +350,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         {composing && (
           <form
             onSubmit={handleCreate}
-            className="space-y-2 border-b border-white/10 p-2"
+            className="space-y-2 border-b p-2"
             data-testid="node-composer"
           >
             <div className="flex flex-wrap gap-1">
@@ -360,18 +360,22 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
                   type="button"
                   onClick={() => setNodeType(t)}
                   aria-pressed={nodeType === t}
-                  className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
                     nodeType === t
-                      ? 'border-white/30 bg-white/15 text-white'
-                      : 'border-white/10 text-white/60'
+                      ? 'border-brand-sky bg-brand-sky/10 text-brand-sky'
+                      : 'text-muted-foreground hover:bg-muted'
                   }`}
                 >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: `var(${TYPE_VAR[t]})` }}
+                  />
                   {t}
                 </button>
               ))}
             </div>
             <input
-              className="w-full rounded-md border border-white/15 bg-white/5 px-2 py-1 text-sm text-white outline-none placeholder:text-white/35"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               placeholder="Title"
               aria-label="Node title"
               value={nodeTitle}
@@ -385,16 +389,16 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
         )}
         <ul className="flex-1 space-y-1 overflow-auto p-2" data-testid="node-tray">
           {loading ? (
-            <li className="text-xs text-white/45">Loading…</li>
+            <li className="px-1 text-xs text-muted-foreground">Loading…</li>
           ) : tray.length === 0 ? (
-            <li className="text-xs text-white/45">All nodes placed.</li>
+            <li className="px-1 text-xs text-muted-foreground">All nodes placed.</li>
           ) : (
             tray.map((n) => (
               <li
                 key={n.id}
                 draggable
                 onDragStart={(e) => e.dataTransfer.setData('nodeId', n.id)}
-                className="flex cursor-grab items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[12px] text-white/85 active:cursor-grabbing"
+                className="flex cursor-grab items-center gap-2 rounded-md border bg-background px-2 py-1 text-[12px] shadow-sm transition-colors hover:bg-muted/60 active:cursor-grabbing"
                 data-testid="tray-node"
                 data-node-type={n.type}
                 title={n.label}
@@ -427,7 +431,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
       {(status || error) && (
         <div
           className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-md px-3 py-1.5 text-xs shadow-lg ${
-            error ? 'bg-destructive text-white' : 'bg-white/90 text-[#0a0f1c]'
+            error ? 'bg-destructive text-white' : 'bg-slate-800 text-white'
           }`}
         >
           {error || status}
@@ -486,21 +490,21 @@ function NodePanel({
 
   return (
     <div
-      className="absolute inset-y-0 right-0 z-30 flex w-full max-w-sm flex-col border-l border-white/10 bg-[#0b1020]/95 shadow-2xl backdrop-blur-md"
+      className="absolute inset-y-0 right-0 z-30 flex w-full max-w-sm flex-col border-l border-border bg-card shadow-2xl backdrop-blur-md"
       data-testid="node-panel"
     >
-      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <span
           className="h-3 w-3 rounded-full"
           style={{ background: `var(${TYPE_VAR[node.type]})` }}
         />
-        <span className="text-[11px] uppercase tracking-[0.18em] text-white/55">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           {node.type}
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto text-white/45 hover:text-white"
+          className="ml-auto text-muted-foreground hover:text-foreground"
           aria-label="Close"
         >
           ✕
@@ -510,7 +514,7 @@ function NodePanel({
       <div className="flex-1 space-y-4 overflow-auto p-4">
         {editing ? (
           <input
-            className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-lg font-semibold text-white outline-none"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-lg font-semibold text-foreground outline-none"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-label="Edit title"
@@ -521,7 +525,7 @@ function NodePanel({
 
         {editing ? (
           <textarea
-            className="min-h-40 w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/90 outline-none"
+            className="min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             aria-label="Edit content"
@@ -530,7 +534,7 @@ function NodePanel({
         ) : (
           nodeContent(node) && (
             <div
-              className="whitespace-pre-wrap text-sm leading-relaxed text-white/75"
+              className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80"
               data-testid="node-content"
             >
               {nodeContent(node)}
@@ -540,13 +544,13 @@ function NodePanel({
 
         {links.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-[11px] uppercase tracking-wide text-white/40">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Linked
             </p>
             {links.map(({ edge, other }) => (
               <div
                 key={edge.id}
-                className="flex items-center gap-2 rounded-md border border-white/10 px-2 py-1 text-xs"
+                className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"
               >
                 <span
                   className="h-1.5 w-1.5 rounded-full"
@@ -563,7 +567,7 @@ function NodePanel({
                       ),
                     )
                   }
-                  className="text-white/40 hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive"
                   data-testid="unlink"
                 >
                   unlink
@@ -574,7 +578,7 @@ function NodePanel({
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-white/10 p-4">
+      <div className="flex items-center gap-2 border-t border-border p-4">
         {authored ? (
           editing ? (
             <>
@@ -604,7 +608,7 @@ function NodePanel({
             </Button>
           )
         ) : (
-          <span className="text-[11px] text-white/40">Derived from a project entity.</span>
+          <span className="text-[11px] text-muted-foreground">Derived from a project entity.</span>
         )}
         {authored && !editing && (
           <button
@@ -622,7 +626,7 @@ function NodePanel({
         {!authored && (
           <Link
             href={`/app/projects/${projectId}`}
-            className="ml-auto text-xs text-white/60 underline"
+            className="ml-auto text-xs text-muted-foreground underline"
           >
             Open entity
           </Link>
