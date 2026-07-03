@@ -62,6 +62,9 @@ test('share a project and see a collaborator focus a node', async ({
   await A.getByRole('button', { name: 'Add Hypothesis' }).click();
   await A.getByText('Shared hypothesis').waitFor();
 
+  // Sharing lives in project Settings now.
+  await A.getByRole('link', { name: 'Settings' }).click();
+  await expect(A.getByTestId('project-settings')).toBeVisible();
   const share = A.getByTestId('share-panel');
   await share.getByLabel('Collaborator email').fill(emailB);
   await share.getByRole('button', { name: 'Share' }).click();

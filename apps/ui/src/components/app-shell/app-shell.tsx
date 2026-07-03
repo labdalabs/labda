@@ -41,6 +41,7 @@ const ICONS = {
   hypothesis: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z',
   notebook: 'M8 3v18M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
   doc: 'M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v4h4',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   signout: 'M15 12H4m0 0 4-4m-4 4 4 4M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4',
 } as const;
 
@@ -49,15 +50,18 @@ function NavItem({
   icon,
   label,
   active,
+  testid,
 }: {
   href: string;
   icon: keyof typeof ICONS;
   label: string;
   active: boolean;
+  testid?: string;
 }) {
   return (
     <Link
       href={href}
+      data-testid={testid}
       className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
         active
           ? 'bg-muted font-medium text-foreground'
@@ -172,12 +176,19 @@ export function AppShell({
                 icon="graph"
                 label="Knowledge graph"
                 active={pathname === `${base}/graph`}
+                testid="open-graph"
               />
               <NavItem
                 href={`${base}/assistant`}
                 icon="assistant"
                 label="Assistant"
                 active={pathname === `${base}/assistant`}
+              />
+              <NavItem
+                href={`${base}/settings`}
+                icon="settings"
+                label="Settings"
+                active={pathname === `${base}/settings`}
               />
 
               <TreeSection icon="hypothesis" title="Hypotheses" count={hypotheses.length}>

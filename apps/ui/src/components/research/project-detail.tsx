@@ -8,7 +8,6 @@ import { ApiError } from '@/lib/api/client';
 import { addHypothesis, getProject } from '@/lib/research/queries';
 import type { Project } from '@/lib/research/types';
 import { HypothesisReferences } from './hypothesis-references';
-import { ShareProject } from './share-project';
 import { ProtocolsPanel } from '@/components/protocol/protocols-panel';
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
@@ -88,7 +87,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <Link
               href={`/app/projects/${project.id}/graph`}
               className="text-sm underline"
-              data-testid="open-graph"
             >
               Knowledge graph →
             </Link>
@@ -145,8 +143,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </section>
 
       <ProtocolsPanel projectId={project.id} />
-
-      <ShareProject projectId={project.id} />
     </section>
   );
 }
