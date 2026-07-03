@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { KnowledgeCanvas } from '@/components/knowledge/knowledge-canvas';
+import { KnowledgeBoard } from '@/components/knowledge/knowledge-board';
 
 export default async function GraphPage({
   params,
@@ -24,10 +24,10 @@ export default async function GraphPage({
         >
           ← Back to Project
         </Link>
-        <span className="text-sm font-medium">Knowledge graph</span>
+        <span className="text-sm font-medium">Knowledge board</span>
       </div>
       <div className="relative flex-1">
-        <KnowledgeCanvas projectId={id} />
+        <KnowledgeBoard projectId={id} />
       </div>
     </div>
   );

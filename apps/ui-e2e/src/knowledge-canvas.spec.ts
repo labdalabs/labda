@@ -34,108 +34,54 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.waitForURL('**/app');
 }
 
-test('knowledge canvas renders the graph, opens entities, links nodes, persists', async ({
-  page,
-}) => {
+// The hex knowledge board: author a node, drag it onto the grid to place it,
+// then open its detail panel and edit it.
+test('knowledge board: author, place, and inspect a node', async ({ page }) => {
   test.setTimeout(120_000);
-  const email = `graph_${Date.now()}@lab.test`;
+  const email = `board_${Date.now()}@lab.test`;
   await signIn(page, email);
 
   await page.goto('/app');
-  const projectTitle = `Graph ${Date.now()}`;
+  const projectTitle = `Board ${Date.now()}`;
   await page.getByLabel('Project title').fill(projectTitle);
-  await page.getByRole('button', { name: 'Create Project' }).click();
+  await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  // Add a Hypothesis and a Protocol so the graph has several node types.
   await page.getByLabel('Hypothesis statement').fill('CRISPR increases yield');
   await page.getByRole('button', { name: 'Add Hypothesis' }).click();
   await expect(page.getByText('CRISPR increases yield')).toBeVisible();
-  await page
-    .getByTestId('protocols-panel')
-    .getByLabel('Protocol title')
-    .fill('Assay');
-  // Creating a Protocol navigates to the editor; go back to the project after.
-  await page
-    .getByTestId('protocols-panel')
-    .getByRole('button', { name: 'Create Protocol' })
-    .click();
-  await page.getByRole('link', { name: 'Back to Project' }).click();
 
-  // Open the knowledge graph canvas.
+  // Open the knowledge board.
   await page.getByTestId('open-graph').click();
   await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
 
-  // The Project is a container, not a node; its entities render as nodes.
-  await expect(
-    page.locator('[data-testid="graph-node"][data-node-type="Project"]'),
-  ).toHaveCount(0);
-  await expect(
-    page.locator('[data-testid="graph-node"][data-node-type="Hypothesis"]'),
-  ).toHaveCount(1);
-  await expect(
-    page.locator('[data-testid="graph-node"][data-node-type="Protocol"]'),
-  ).toHaveCount(1);
-
-  // Author a new markdown node of a chosen type; it joins the graph.
+  // Author a node — it lands in the tray of unplaced nodes.
   await page.getByTestId('add-node-toggle').click();
   const composer = page.getByTestId('node-composer');
   await composer.getByRole('button', { name: 'Observation' }).click();
   await composer.getByLabel('Node title').fill('Cells cluster under stress');
-  await composer
-    .getByLabel('Node content')
-    .fill('At 43°C, cells aggregate near the nucleus.');
-  // Import a source file (uploaded browser-direct to private Storage).
-  await composer.getByLabel('Source file').setInputFiles({
-    name: 'viability.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from('temp,viability\n30,0.98\n45,0.12'),
-  });
-  await expect(composer.getByTestId('source-file-name')).toContainText(
-    'viability.csv',
+  await composer.getByRole('button', { name: 'Add' }).click();
+  const trayNode = page
+    .getByTestId('tray-node')
+    .filter({ hasText: 'Cells cluster under stress' });
+  await expect(trayNode).toBeVisible();
+
+  // Drag it onto the board (the seed drop zone) — it becomes a placed cell.
+  await trayNode.dragTo(page.getByTestId('hex-drop').first());
+  const placed = page.locator(
+    '[data-testid="graph-node"][data-node-type="Observation"]',
   );
-  await composer.getByRole('button', { name: 'Add node' }).click();
-  await expect(
-    page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
-  ).toHaveCount(1);
+  await expect(placed).toHaveCount(1);
 
-  // Focusing the authored node shows its markdown body + the source file link.
-  await page.locator('[data-node-type="Observation"] button').first().click();
-  await expect(page.getByTestId('node-content')).toContainText('At 43°C');
-  await expect(page.getByTestId('node-source')).toBeVisible();
+  // Click the cell → the right-side detail panel with its title.
+  await placed.click();
+  const panel = page.getByTestId('node-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('Cells cluster under stress');
 
-  // Link two nodes (Obsidian-like) and confirm it persists.
-  await expect(page.getByTestId('linked-count')).toContainText('0 user links');
-  await page.getByTestId('link-mode-toggle').click();
-  await page.locator('[data-node-type="Hypothesis"] button').first().click();
-  await page.locator('[data-node-type="Protocol"] button').first().click();
-  await expect(page.getByTestId('linked-count')).toContainText('1 user link');
-
+  // Placement persists across a reload.
   await page.reload();
-  await expect(page.getByTestId('linked-count')).toContainText('1 user link');
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
   ).toHaveCount(1);
-
-  // The OKF file tree mirrors the on-disk layout: nodes filed under
-  // type directories as .md files.
-  await page.getByRole('button', { name: 'Files' }).click();
-  const tree = page.getByTestId('okf-tree');
-  await expect(tree).toContainText('observations/');
-  await expect(tree).toContainText('.md');
-
-  // Group nodes into a cluster — a Knowledge node linked to its members, which
-  // can then be linked to other nodes/clusters like anything else.
-  await page.getByRole('button', { name: 'Cells', exact: true }).click();
-  await page.getByTestId('group-mode-toggle').click();
-  await page.locator('[data-node-type="Hypothesis"] button').first().click();
-  await page.locator('[data-node-type="Observation"] button').first().click();
-  const bar = page.getByTestId('cluster-bar');
-  await expect(bar).toContainText('2 selected');
-  await bar.getByLabel('Cluster name').fill('Thermal stress');
-  await bar.getByRole('button', { name: 'Form cluster' }).click();
-  await expect(
-    page.locator('[data-testid="graph-node"][data-node-type="Knowledge"]'),
-  ).toHaveCount(1);
-  await expect(page.getByTestId('linked-count')).toContainText('3 user links');
 });

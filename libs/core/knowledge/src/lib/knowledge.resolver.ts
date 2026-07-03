@@ -13,6 +13,8 @@ import {
   KnowledgeEdge,
   KnowledgeNodeType,
   LinkNodesInput,
+  SetNodePositionInput,
+  UpdateKnowledgeNodeInput,
   type OkfNodeTypeGql,
   type OkfPredicateGql,
 } from './knowledge.models';
@@ -25,6 +27,8 @@ function nodeToGql(n: OkfNode): KnowledgeNode {
     type: n.type as OkfNodeTypeGql,
     label: n.label,
     attributes: JSON.stringify(n.attributes),
+    q: n.q ?? null,
+    r: n.r ?? null,
   };
 }
 
@@ -114,6 +118,34 @@ export class KnowledgeResolver {
     };
   }
 
+  @Mutation(() => KnowledgeNodeType)
+  async updateKnowledgeNode(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: UpdateKnowledgeNodeInput,
+  ): Promise<KnowledgeNodeType> {
+    const row = await this.knowledgeService.updateNode(user, input.id, {
+      title: input.title,
+      content: input.content,
+    });
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      type: row.type as OkfNodeTypeGql,
+      title: row.title,
+      content: row.content,
+      sourceRef: row.sourceRef,
+      createdAt: row.createdAt,
+    };
+  }
+
+  @Mutation(() => Boolean)
+  async deleteKnowledgeNode(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<boolean> {
+    return this.knowledgeService.deleteNode(user, id);
+  }
+
   @Mutation(() => KnowledgeLinkType)
   async linkKnowledge(
     @CurrentUser() user: AuthenticatedUser,
@@ -126,5 +158,22 @@ export class KnowledgeResolver {
       toNodeId: row.toNodeId,
       label: row.label,
     };
+  }
+
+  @Mutation(() => Boolean)
+  async unlinkKnowledge(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('linkId', { type: () => ID }) linkId: string,
+  ): Promise<boolean> {
+    return this.knowledgeService.unlink(user, linkId);
+  }
+
+  @Mutation(() => Boolean)
+  async setNodePosition(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: SetNodePositionInput,
+  ): Promise<boolean> {
+    await this.knowledgeService.setPosition(user, input);
+    return true;
   }
 }

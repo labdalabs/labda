@@ -35,6 +35,9 @@ export interface OkfNode {
   type: OkfNodeType;
   label: string;
   attributes: Record<string, unknown>;
+  // Axial hex-grid coordinates on the board, when the node has been placed.
+  q?: number | null;
+  r?: number | null;
 }
 
 export interface OkfEdge {
@@ -84,6 +87,8 @@ export interface GraphInputs {
     sourceRef?: string | null;
     attributes?: Record<string, unknown>;
   }[];
+  // Hex-grid board positions keyed by OKF node id (e.g. "node:<uuid>").
+  positions?: Record<string, { q: number; r: number }>;
 }
 
 export function buildOkfGraph(input: GraphInputs): OkfGraph {
@@ -197,6 +202,17 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
         predicate: 'linked',
         attributes: { label: l.label, linkId: l.id },
       });
+    }
+  }
+
+  // Attach hex-grid board positions to their matching nodes (by node id).
+  if (input.positions) {
+    for (const n of nodes) {
+      const pos = input.positions[n.id];
+      if (pos) {
+        n.q = pos.q;
+        n.r = pos.r;
+      }
     }
   }
 

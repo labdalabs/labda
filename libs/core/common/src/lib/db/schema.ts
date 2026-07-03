@@ -237,3 +237,27 @@ export const knowledgeNode = pgTable(
   },
   (table) => [index('KnowledgeNode_projectId_idx').on(table.projectId)],
 );
+
+// Hex-grid board position of a knowledge-graph node within a Project. `nodeId`
+// is the OKF node id (e.g. "node:<uuid>" or "hypothesis:<uuid>"), so any node —
+// authored, hypothesis, protocol, reference — can be placed on the board.
+// (q, r) are axial hex coordinates. One position per node per Project.
+export const nodePosition = pgTable(
+  'NodePosition',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    nodeId: text().notNull(),
+    q: integer().notNull(),
+    r: integer().notNull(),
+    updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('NodePosition_projectId_nodeId_key').on(
+      table.projectId,
+      table.nodeId,
+    ),
+  ],
+);

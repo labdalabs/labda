@@ -9,7 +9,7 @@ export async function knowledgeGraph(
       knowledgeGraph(projectId: $projectId) {
         format
         rootId
-        nodes { id type label attributes }
+        nodes { id type label attributes q r }
         edges { id from to predicate attributes }
       }
     }`,
@@ -49,6 +49,52 @@ export async function createKnowledgeNode(input: {
     { input },
   );
   return data.createKnowledgeNode;
+}
+
+export async function updateKnowledgeNode(input: {
+  id: string;
+  title?: string;
+  content?: string;
+}): Promise<{ id: string }> {
+  const data = await graphql<{ updateKnowledgeNode: { id: string } }>(
+    `mutation UpdateKnowledgeNode($input: UpdateKnowledgeNodeInput!) {
+      updateKnowledgeNode(input: $input) { id title }
+    }`,
+    { input },
+  );
+  return data.updateKnowledgeNode;
+}
+
+export async function deleteKnowledgeNode(id: string): Promise<boolean> {
+  const data = await graphql<{ deleteKnowledgeNode: boolean }>(
+    `mutation DeleteKnowledgeNode($id: ID!) { deleteKnowledgeNode(id: $id) }`,
+    { id },
+  );
+  return data.deleteKnowledgeNode;
+}
+
+export async function unlinkKnowledge(linkId: string): Promise<boolean> {
+  const data = await graphql<{ unlinkKnowledge: boolean }>(
+    `mutation UnlinkKnowledge($linkId: ID!) { unlinkKnowledge(linkId: $linkId) }`,
+    { linkId },
+  );
+  return data.unlinkKnowledge;
+}
+
+// Place/move a node on the hex board (axial coords).
+export async function setNodePosition(input: {
+  projectId: string;
+  nodeId: string;
+  q: number;
+  r: number;
+}): Promise<boolean> {
+  const data = await graphql<{ setNodePosition: boolean }>(
+    `mutation SetNodePosition($input: SetNodePositionInput!) {
+      setNodePosition(input: $input)
+    }`,
+    { input },
+  );
+  return data.setNodePosition;
 }
 
 export async function exportKnowledge(

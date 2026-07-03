@@ -1,11 +1,19 @@
 import {
   Field,
   ID,
+  Int,
   InputType,
   ObjectType,
   registerEnumType,
 } from '@nestjs/graphql';
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export enum OkfNodeTypeGql {
   Project = 'Project',
@@ -42,6 +50,9 @@ export class KnowledgeNode {
   @Field() label!: string;
   // attributes as a JSON string.
   @Field() attributes!: string;
+  // Axial hex-grid coordinates on the board, when the node has been placed.
+  @Field(() => Int, { nullable: true }) q?: number | null;
+  @Field(() => Int, { nullable: true }) r?: number | null;
 }
 
 @ObjectType()
@@ -147,4 +158,41 @@ export class LinkNodesInput {
   @IsString()
   @MaxLength(200)
   label?: string;
+}
+
+@InputType()
+export class UpdateKnowledgeNodeInput {
+  @Field(() => ID)
+  @IsUUID()
+  id!: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  title?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  content?: string;
+}
+
+@InputType()
+export class SetNodePositionInput {
+  @Field(() => ID)
+  @IsUUID()
+  projectId!: string;
+
+  @Field()
+  @IsString()
+  nodeId!: string;
+
+  @Field(() => Int)
+  @IsInt()
+  q!: number;
+
+  @Field(() => Int)
+  @IsInt()
+  r!: number;
 }

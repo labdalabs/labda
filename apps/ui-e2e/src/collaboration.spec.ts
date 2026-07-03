@@ -67,18 +67,27 @@ test('share a project and see a collaborator focus a node', async ({
   await share.getByRole('button', { name: 'Share' }).click();
   await expect(A.getByTestId('member-list')).toContainText(emailB);
 
-  // B now sees the shared project and opens its graph.
+  // A opens the board and places the hypothesis cell.
+  await A.getByTestId('open-graph').click();
+  await expect(A.getByTestId('knowledge-canvas')).toBeVisible();
+  await A.getByTestId('tray-node')
+    .filter({ hasText: 'Shared hypothesis' })
+    .dragTo(A.getByTestId('hex-drop').first());
+  const aCell = A.locator(
+    '[data-testid="graph-node"][data-node-type="Hypothesis"]',
+  );
+  await expect(aCell).toHaveCount(1);
+  await aCell.click(); // A focuses the cell
+
+  // B sees the shared project, opens the board — the placed cell is there.
   await B.goto('/app');
   await B.getByRole('link', { name: new RegExp(title) }).click();
   await B.getByTestId('open-graph').click();
-  await expect(B.getByTestId('knowledge-canvas')).toBeVisible();
+  await expect(
+    B.locator('[data-testid="graph-node"][data-node-type="Hypothesis"]'),
+  ).toHaveCount(1);
 
-  // A opens the same graph and focuses the hypothesis node.
-  await A.getByTestId('open-graph').click();
-  await expect(A.getByTestId('knowledge-canvas')).toBeVisible();
-  await A.locator('[data-node-type="Hypothesis"] button').first().click();
-
-  // B sees A present and focused on that node (live via Realtime).
+  // B sees A present and focused on that cell (live via Realtime).
   await expect(B.getByTestId('presence-strip')).toBeVisible({ timeout: 25_000 });
   await expect(B.getByTestId('node-presence').first()).toBeVisible({
     timeout: 25_000,

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -9,6 +9,7 @@ import {
   SUPABASE_ADMIN,
   knowledgeLink,
   knowledgeNode,
+  nodePosition,
 } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { ResearchFacade } from '@labda/core-research';
@@ -26,6 +27,7 @@ import { toOkfBundle, type OkfFile } from './okf-bundle';
 
 type LinkRow = typeof knowledgeLink.$inferSelect;
 type NodeRow = typeof knowledgeNode.$inferSelect;
+type PositionRow = typeof nodePosition.$inferSelect;
 
 // Cell count of an nbformat JSON string; 0 when unparseable.
 function countNotebookCells(notebook: string): number {
@@ -118,6 +120,11 @@ export class KnowledgeService {
 
     const links = await this.listLinks(user, projectId);
     const authored = await this.listNodes(user, projectId);
+    const positions = await this.listPositions(user, projectId);
+    const positionsByNodeId: Record<string, { q: number; r: number }> = {};
+    for (const p of positions) {
+      positionsByNodeId[p.nodeId] = { q: p.q, r: p.r };
+    }
 
     return buildOkfGraph({
       project: {
@@ -152,6 +159,7 @@ export class KnowledgeService {
         sourceRef: n.sourceRef,
         attributes: n.attributes,
       })),
+      positions: positionsByNodeId,
     });
   }
 
@@ -246,14 +254,15 @@ export class KnowledgeService {
     id: string,
     patch: { title?: string; content?: string; sourceRef?: string },
   ): Promise<NodeRow> {
-    // Ownership: only the node's owner may update it.
     const [existing] = await this.db
       .select()
       .from(knowledgeNode)
       .where(eq(knowledgeNode.id, id));
-    if (!existing || existing.ownerId !== user.id) {
+    if (!existing) {
       throw new Error('Knowledge node not found');
     }
+    // Access: owner OR ProjectMember of the node's Project (throws otherwise).
+    await this.researchFacade.getProject(user, existing.projectId);
     const [row] = await this.db
       .update(knowledgeNode)
       .set({
@@ -263,6 +272,91 @@ export class KnowledgeService {
         updatedAt: new Date(),
       })
       .where(eq(knowledgeNode.id, id))
+      .returning();
+    return row;
+  }
+
+  // Delete an authored node, its board position, and any links referencing it.
+  async deleteNode(user: AuthenticatedUser, id: string): Promise<boolean> {
+    const [existing] = await this.db
+      .select()
+      .from(knowledgeNode)
+      .where(eq(knowledgeNode.id, id));
+    if (!existing) {
+      throw new Error('Knowledge node not found');
+    }
+    // Access: owner OR ProjectMember of the node's Project (throws otherwise).
+    await this.researchFacade.getProject(user, existing.projectId);
+
+    const okfId = `node:${id}`;
+    await this.db.delete(knowledgeNode).where(eq(knowledgeNode.id, id));
+    await this.db
+      .delete(nodePosition)
+      .where(
+        and(
+          eq(nodePosition.projectId, existing.projectId),
+          eq(nodePosition.nodeId, okfId),
+        ),
+      );
+    await this.db
+      .delete(knowledgeLink)
+      .where(
+        or(
+          eq(knowledgeLink.fromNodeId, okfId),
+          eq(knowledgeLink.toNodeId, okfId),
+        ),
+      );
+    this.logger.log({ id }, 'Deleted knowledge node');
+    return true;
+  }
+
+  // Delete a user-drawn link, gated by access to its Project.
+  async unlink(user: AuthenticatedUser, linkId: string): Promise<boolean> {
+    const [existing] = await this.db
+      .select()
+      .from(knowledgeLink)
+      .where(eq(knowledgeLink.id, linkId));
+    if (!existing) {
+      throw new Error('Knowledge link not found');
+    }
+    // Access: owner OR ProjectMember of the link's Project (throws otherwise).
+    await this.researchFacade.getProject(user, existing.projectId);
+    await this.db.delete(knowledgeLink).where(eq(knowledgeLink.id, linkId));
+    this.logger.log({ linkId }, 'Unlinked knowledge nodes');
+    return true;
+  }
+
+  // ── Hex-grid board positions ──
+
+  async listPositions(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<PositionRow[]> {
+    await this.researchFacade.getProject(user, projectId);
+    return this.db
+      .select()
+      .from(nodePosition)
+      .where(eq(nodePosition.projectId, projectId));
+  }
+
+  async setPosition(
+    user: AuthenticatedUser,
+    input: { projectId: string; nodeId: string; q: number; r: number },
+  ): Promise<PositionRow> {
+    // Access: owner OR ProjectMember of the Project (throws otherwise).
+    await this.researchFacade.getProject(user, input.projectId);
+    const [row] = await this.db
+      .insert(nodePosition)
+      .values({
+        projectId: input.projectId,
+        nodeId: input.nodeId,
+        q: input.q,
+        r: input.r,
+      })
+      .onConflictDoUpdate({
+        target: [nodePosition.projectId, nodePosition.nodeId],
+        set: { q: input.q, r: input.r, updatedAt: new Date() },
+      })
       .returning();
     return row;
   }

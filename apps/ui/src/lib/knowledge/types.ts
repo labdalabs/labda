@@ -41,6 +41,8 @@ export interface KnowledgeNode {
   type: OkfNodeType;
   label: string;
   attributes: string; // JSON string
+  q?: number | null; // hex board axial coords (null = not placed yet)
+  r?: number | null;
 }
 
 export interface KnowledgeEdge {

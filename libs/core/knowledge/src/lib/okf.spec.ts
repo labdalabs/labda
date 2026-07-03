@@ -80,6 +80,22 @@ describe('okf', () => {
     expect(node?.attributes['tag']).toBe('x');
   });
 
+  it('attaches hex-grid positions to matching nodes by id', () => {
+    const g = buildOkfGraph({
+      ...inputs,
+      positions: {
+        'hypothesis:h1': { q: 2, r: -3 },
+      },
+    });
+    const h = g.nodes.find((n) => n.id === 'hypothesis:h1');
+    expect(h?.q).toBe(2);
+    expect(h?.r).toBe(-3);
+    // Unplaced nodes carry no coordinates.
+    const r = g.nodes.find((n) => n.id === 'reference:r1');
+    expect(r?.q ?? null).toBeNull();
+    expect(r?.r ?? null).toBeNull();
+  });
+
   it('deduplicates nodes', () => {
     const g = buildOkfGraph({
       ...inputs,
