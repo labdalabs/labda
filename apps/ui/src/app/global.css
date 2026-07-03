@@ -169,7 +169,11 @@
   /* Geist is loaded in layout.tsx as --font-geist-sans / --font-geist-mono;
      headings use Nunito Sans (--font-nunito, bundled) — a geometric humanist in
      the spirit of the brand's Avenir Next, which isn't web-available. */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Nunito Sans everywhere — the friendly, rounded face from the sign-in /
+     landing pages — so the whole app reads as one brand. Geist stays only as a
+     fallback and for mono. */
+  --font-sans: var(--font-nunito), var(--font-geist-sans), ui-sans-serif,
+    system-ui, sans-serif;
   --font-heading: var(--font-nunito), 'Avenir Next', 'Nunito Sans',
     var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', monospace;
