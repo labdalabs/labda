@@ -39,6 +39,7 @@ interface WorkspaceState {
   setProject: (id: string) => void;
   openTab: (tab: WorkspaceTab) => void;
   closeTab: (key: string) => void;
+  closeTabsByNodeId: (nodeId: string) => void;
   setActive: (key: string) => void;
   bumpGraph: () => void;
 }
@@ -83,6 +84,15 @@ export const useWorkspace = create<WorkspaceState>()(
               ? tabs[Math.min(idx, tabs.length - 1)].key
               : null;
           }
+          return { tabs, activeKey };
+        }),
+      closeTabsByNodeId: (nodeId) =>
+        set((s) => {
+          const tabs = s.tabs.filter((t) => t.nodeId !== nodeId);
+          if (tabs.length === s.tabs.length) return s;
+          const activeKey = tabs.some((t) => t.key === s.activeKey)
+            ? s.activeKey
+            : (tabs[tabs.length - 1]?.key ?? null);
           return { tabs, activeKey };
         }),
       setActive: (key) => set({ activeKey: key }),

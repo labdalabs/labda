@@ -161,7 +161,7 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-black/[0.06] bg-muted/30">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         <Link href="/app" className="flex items-center gap-2 px-4 py-3.5">
           <Image
             src="/labda_logo_xs.png"
@@ -292,7 +292,7 @@ export function AppShell({
           )}
         </nav>
 
-        <div className="border-t border-black/[0.06] p-3">
+        <div className="border-t border-sidebar-border p-3">
           {email ? (
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-sky/15 text-xs font-medium text-brand-sky">

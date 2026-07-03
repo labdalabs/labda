@@ -193,6 +193,7 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
   }
 
   async function placeNode(nodeId: string, q: number, r: number) {
+    const prev = pos[nodeId]; // for rollback if the server rejects
     setPos((p) => ({ ...p, [nodeId]: { q, r } }));
     setError('');
     try {
@@ -215,6 +216,13 @@ export function KnowledgeBoard({ projectId }: { projectId: string }) {
       }
       await refresh();
     } catch (err) {
+      // Roll back the optimistic placement so the UI matches the server.
+      setPos((p) => {
+        const next = { ...p };
+        if (prev) next[nodeId] = prev;
+        else delete next[nodeId];
+        return next;
+      });
       setError(err instanceof ApiError ? err.message : String(err));
     }
   }
@@ -698,9 +706,15 @@ function NodePanel({
           <button
             type="button"
             disabled={busy}
-            onClick={() =>
-              run(() => deleteKnowledgeNode(node.id.replace(/^node:/, ''))).then(onClose)
-            }
+            onClick={() => {
+              const authoredId = node.id.replace(/^node:/, '');
+              // Close on success only; also close any file tab for this node.
+              void run(async () => {
+                await deleteKnowledgeNode(authoredId);
+                useWorkspace.getState().closeTabsByNodeId(authoredId);
+                onClose();
+              });
+            }}
             className="ml-auto rounded-md px-2.5 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
             data-testid="delete-node"
           >

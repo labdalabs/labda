@@ -26,6 +26,7 @@ export function ProjectHome({ projectId }: { projectId: string }) {
   const [goal, setGoal] = useState('');
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
     try {
@@ -54,25 +55,27 @@ export function ProjectHome({ projectId }: { projectId: string }) {
     const g = text.trim();
     if (!g || busy) return;
     setBusy(true);
+    setError('');
     try {
       const s = await createAgentSession({ projectId, goal: g });
       setGoal('');
       await refresh();
       open(s);
     } catch {
-      /* ignore */
+      setError('Couldn’t start the session. Please try again.');
     } finally {
       setBusy(false);
     }
   }
 
   async function remove(s: AgentSession) {
+    setError('');
     try {
       await deleteAgentSession(s.id);
       closeTab(`session:${s.id}`);
       await refresh();
     } catch {
-      /* ignore */
+      setError('Couldn’t delete the session. Please try again.');
     }
   }
 
@@ -108,6 +111,11 @@ export function ProjectHome({ projectId }: { projectId: string }) {
         >
           {busy ? 'Starting…' : 'Start session'}
         </Button>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
       </form>
 
       <div className="space-y-2">
