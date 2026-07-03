@@ -11,6 +11,7 @@ import {
 } from '@/lib/knowledge/queries';
 import { createClient } from '@/lib/supabase/browser';
 import { useKnowledgeCanvas } from '@/lib/knowledge/store';
+import { usePresence } from '@/lib/knowledge/use-presence';
 import {
   AUTHORABLE_NODE_TYPES,
   type KnowledgeNode,
@@ -350,6 +351,19 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
     }
   }
 
+  // Live presence: others viewing this project's graph + which node each is on.
+  const others = usePresence(projectId, selectedId);
+  const presenceByNode = new Map<string, typeof others>();
+  for (const p of others) {
+    if (!p.nodeId) continue;
+    const list = presenceByNode.get(p.nodeId) ?? [];
+    list.push(p);
+    presenceByNode.set(p.nodeId, list);
+  }
+  const selectedViewers = selectedId
+    ? (presenceByNode.get(selectedId)?.length ?? 0)
+    : 0;
+
   const linkedCount =
     graph?.edges.filter((e) => e.predicate === 'linked').length ?? 0;
   const selectedNode = graph?.nodes.find((n) => n.id === selectedId) ?? null;
@@ -435,6 +449,15 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
                 <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                 {connections} connection{connections === 1 ? '' : 's'}
               </span>
+              {selectedViewers > 0 && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-emerald-200/90"
+                  data-testid="dossier-presence"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  {selectedViewers} other{selectedViewers === 1 ? '' : 's'} viewing
+                </span>
+              )}
               {nodeSource(selectedNode) && (
                 <button
                   type="button"
@@ -476,6 +499,24 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
               Press Esc or click the field to return.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Who's here — live participants viewing this project's graph. */}
+      {others.length > 0 && (
+        <div
+          className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1.5"
+          data-testid="presence-strip"
+        >
+          {others.map((p) => (
+            <span
+              key={p.userId}
+              title={`${p.name}${p.nodeId ? ' · focused on a node' : ''}`}
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-white/25 bg-emerald-400/20 text-[10px] font-semibold text-white/90 shadow-sm"
+            >
+              {p.name.slice(0, 2).toUpperCase()}
+            </span>
+          ))}
         </div>
       )}
 
@@ -591,6 +632,18 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
                   >
                     {n.label}
                   </button>
+                  {presenceByNode.has(n.id) && (
+                    <span
+                      data-testid="node-presence"
+                      title={`${presenceByNode
+                        .get(n.id)!
+                        .map((p) => p.name)
+                        .join(', ')} viewing`}
+                      className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400/90 px-1 text-[9px] font-semibold text-[#0a0f1c]"
+                    >
+                      {presenceByNode.get(n.id)!.length}
+                    </span>
+                  )}
                   {!linkMode && href && (
                     <Link
                       href={href}

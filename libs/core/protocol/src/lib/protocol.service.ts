@@ -4,13 +4,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DB_CONNECTION,
   EventBusService,
   profile,
   project,
+  projectMember,
   protocol,
   protocolVersion,
 } from '@labda/core-common';
@@ -168,12 +169,22 @@ export class ProtocolService {
     user: AuthenticatedUser,
     projectId: string,
   ): Promise<void> {
+    // Owner or a shared member (mirrors research getProject membership).
+    const memberOf = this.db
+      .select({ projectId: projectMember.projectId })
+      .from(projectMember)
+      .where(eq(projectMember.userId, user.id));
     const [row] = await this.db
-      .select({ id: project.id, ownerId: project.ownerId })
+      .select({ id: project.id })
       .from(project)
-      .where(eq(project.id, projectId))
+      .where(
+        and(
+          eq(project.id, projectId),
+          or(eq(project.ownerId, user.id), inArray(project.id, memberOf)),
+        ),
+      )
       .limit(1);
-    if (!row || row.ownerId !== user.id) {
+    if (!row) {
       throw new NotFoundException('Project not found');
     }
   }

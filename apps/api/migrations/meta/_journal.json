@@ -50,6 +50,13 @@
       "when": 1783037852370,
       "tag": "0006_white_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783065438985,
+      "tag": "0007_fluffy_arclight",
+      "breakpoints": true
     }
   ]
 }

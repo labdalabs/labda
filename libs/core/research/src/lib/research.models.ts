@@ -1,5 +1,6 @@
 import { Field, ID, InputType, ObjectType } from '@nestjs/graphql';
 import {
+  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -29,6 +30,15 @@ export class Project {
   // Resolved via @ResolveField on ProjectResolver.
   @Field(() => [Hypothesis], { nullable: true })
   hypotheses?: Hypothesis[];
+}
+
+// A Profile with access to a Project: the owner (role 'owner') or a member.
+@ObjectType()
+export class ProjectMemberType {
+  @Field(() => ID) userId!: string;
+  @Field() email!: string;
+  @Field(() => String, { nullable: true }) fullName?: string | null;
+  @Field() role!: string;
 }
 
 // ─── GraphQL input types ─────────────────────────────────────────────────────
@@ -67,6 +77,17 @@ export class AddHypothesisInput {
   rationale?: string;
 }
 
+@InputType()
+export class ShareProjectInput {
+  @Field(() => ID)
+  @IsUUID()
+  projectId!: string;
+
+  @Field()
+  @IsEmail()
+  email!: string;
+}
+
 // ─── Service-edge DTOs (plain shapes, no GraphQL coupling) ───────────────────
 
 export interface ProjectDto {
@@ -75,6 +96,13 @@ export interface ProjectDto {
   description: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ProjectMemberDto {
+  userId: string;
+  email: string;
+  fullName: string | null;
+  role: string;
 }
 
 export interface HypothesisDto {

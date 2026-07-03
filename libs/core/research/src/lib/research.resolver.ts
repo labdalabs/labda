@@ -15,6 +15,8 @@ import {
   CreateProjectInput,
   Hypothesis,
   Project,
+  ProjectMemberType,
+  ShareProjectInput,
 } from './research.models';
 
 @Resolver(() => Project)
@@ -40,6 +42,22 @@ export class ResearchResolver {
     @Args('input') input: CreateProjectInput,
   ): Promise<Project> {
     return this.researchService.createProject(user, input);
+  }
+
+  @Query(() => [ProjectMemberType], { name: 'projectMembers' })
+  async projectMembers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('projectId', { type: () => ID }) projectId: string,
+  ): Promise<ProjectMemberType[]> {
+    return this.researchService.listMembers(user, projectId);
+  }
+
+  @Mutation(() => ProjectMemberType)
+  async shareProject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: ShareProjectInput,
+  ): Promise<ProjectMemberType> {
+    return this.researchService.shareProject(user, input.projectId, input.email);
   }
 
   @Mutation(() => Hypothesis)

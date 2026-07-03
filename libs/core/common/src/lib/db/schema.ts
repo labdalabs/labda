@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   vector,
 } from 'drizzle-orm/pg-core';
@@ -48,6 +49,30 @@ export const project = pgTable(
     updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
   },
   (table) => [index('Project_ownerId_idx').on(table.ownerId)],
+);
+
+// Grants a Profile access to a Project it does not own (collaboration). The
+// owner is implicit (Project.ownerId) and never has a ProjectMember row.
+export const projectMember = pgTable(
+  'ProjectMember',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    userId: text()
+      .notNull()
+      .references(() => profile.id),
+    role: text().notNull().default('editor'),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('ProjectMember_projectId_userId_key').on(
+      table.projectId,
+      table.userId,
+    ),
+    index('ProjectMember_userId_idx').on(table.userId),
+  ],
 );
 
 // The testable claim under investigation, nested in a Project.

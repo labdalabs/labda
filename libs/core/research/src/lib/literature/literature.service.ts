@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -15,6 +15,7 @@ import {
   SUPABASE_ADMIN,
   hypothesis,
   project,
+  projectMember,
   reference,
 } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
@@ -195,12 +196,23 @@ export class LiteratureService {
     user: AuthenticatedUser,
     hypothesisId: string,
   ): Promise<void> {
+    // Access follows the hypothesis's project: owner or shared member.
+    const memberOf = this.db
+      .select({ projectId: projectMember.projectId })
+      .from(projectMember)
+      .where(eq(projectMember.userId, user.id));
     const [row] = await this.db
-      .select({ id: hypothesis.id, ownerId: hypothesis.ownerId })
+      .select({ id: hypothesis.id })
       .from(hypothesis)
-      .where(eq(hypothesis.id, hypothesisId))
+      .innerJoin(project, eq(hypothesis.projectId, project.id))
+      .where(
+        and(
+          eq(hypothesis.id, hypothesisId),
+          or(eq(project.ownerId, user.id), inArray(project.id, memberOf)),
+        ),
+      )
       .limit(1);
-    if (!row || row.ownerId !== user.id) {
+    if (!row) {
       // Don't distinguish "not found" from "not yours".
       throw new NotFoundException('Hypothesis not found');
     }

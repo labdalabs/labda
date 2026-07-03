@@ -38,6 +38,39 @@ export async function getProject(id: string): Promise<Project> {
   return data.project;
 }
 
+export interface ProjectMember {
+  userId: string;
+  email: string;
+  fullName?: string | null;
+  role: string;
+}
+
+// Grant another researcher (by email) access to this project.
+export async function shareProject(input: {
+  projectId: string;
+  email: string;
+}): Promise<ProjectMember> {
+  const data = await graphql<{ shareProject: ProjectMember }>(
+    `mutation ShareProject($input: ShareProjectInput!) {
+      shareProject(input: $input) { userId email fullName role }
+    }`,
+    { input },
+  );
+  return data.shareProject;
+}
+
+export async function projectMembers(
+  projectId: string,
+): Promise<ProjectMember[]> {
+  const data = await graphql<{ projectMembers: ProjectMember[] }>(
+    `query ProjectMembers($projectId: ID!) {
+      projectMembers(projectId: $projectId) { userId email fullName role }
+    }`,
+    { projectId },
+  );
+  return data.projectMembers;
+}
+
 export async function createProject(input: {
   title: string;
   description?: string;
