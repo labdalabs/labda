@@ -14,9 +14,11 @@ export type OkfNodeType =
   | 'Data'
   | 'Paper';
 
-// The authored node types a user can create by hand (the derived ones —
-// Project/Hypothesis/Protocol/Reference/Notebook/Analysis/Thesis — come from
-// domain entities, not the node composer).
+// The authored node types a user can create by hand from the graph composer.
+// The derived ones — Project/Hypothesis/Protocol/Reference/Notebook/Analysis/
+// Thesis — come from domain entities, not this composer. In particular a
+// Notebook/Protocol is created in one place only: the Protocols panel (which
+// opens the notebook editor), so it's intentionally NOT authorable here.
 export const AUTHORABLE_NODE_TYPES: OkfNodeType[] = [
   'Idea',
   'Observation',
@@ -24,7 +26,6 @@ export const AUTHORABLE_NODE_TYPES: OkfNodeType[] = [
   'Knowledge',
   'Data',
   'Paper',
-  'Notebook',
 ];
 export type OkfPredicate =
   | 'contains'
