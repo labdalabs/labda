@@ -186,3 +186,29 @@ export const knowledgeLink = pgTable(
   },
   (table) => [index('KnowledgeLink_projectId_idx').on(table.projectId)],
 );
+
+// A first-class knowledge-graph node authored by a user or an agent (as opposed
+// to the nodes derived from Project/Hypothesis/Protocol/Reference entities).
+// Its OKF node id is "node:<uuid>". `type` is an OkfNodeType string, `content`
+// is a markdown body, `sourceRef` points at a Storage path / URL to a source
+// file (pdf/csv) when the node is backed by one.
+export const knowledgeNode = pgTable(
+  'KnowledgeNode',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    projectId: uuid()
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    ownerId: text()
+      .notNull()
+      .references(() => profile.id),
+    type: text().notNull(),
+    title: text().notNull(),
+    content: text().default(''),
+    sourceRef: text(),
+    attributes: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [index('KnowledgeNode_projectId_idx').on(table.projectId)],
+);

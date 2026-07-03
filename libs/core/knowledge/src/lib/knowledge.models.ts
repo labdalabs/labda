@@ -5,7 +5,7 @@ import {
   ObjectType,
   registerEnumType,
 } from '@nestjs/graphql';
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export enum OkfNodeTypeGql {
   Project = 'Project',
@@ -15,6 +15,12 @@ export enum OkfNodeTypeGql {
   Notebook = 'Notebook',
   Analysis = 'Analysis',
   Thesis = 'Thesis',
+  Idea = 'Idea',
+  Observation = 'Observation',
+  Conclusion = 'Conclusion',
+  Knowledge = 'Knowledge',
+  Data = 'Data',
+  Paper = 'Paper',
 }
 registerEnumType(OkfNodeTypeGql, { name: 'OkfNodeType' });
 
@@ -75,6 +81,44 @@ export class KnowledgeLinkType {
   @Field(() => ID) fromNodeId!: string;
   @Field(() => ID) toNodeId!: string;
   @Field(() => String, { nullable: true }) label?: string | null;
+}
+
+@ObjectType()
+export class KnowledgeNodeType {
+  @Field(() => ID) id!: string;
+  @Field(() => ID) projectId!: string;
+  @Field(() => OkfNodeTypeGql) type!: OkfNodeTypeGql;
+  @Field() title!: string;
+  @Field(() => String, { nullable: true }) content?: string | null;
+  @Field(() => String, { nullable: true }) sourceRef?: string | null;
+  @Field() createdAt!: Date;
+}
+
+@InputType()
+export class CreateKnowledgeNodeInput {
+  @Field(() => ID)
+  @IsUUID()
+  projectId!: string;
+
+  @Field(() => OkfNodeTypeGql)
+  @IsEnum(OkfNodeTypeGql)
+  type!: OkfNodeTypeGql;
+
+  @Field()
+  @IsString()
+  @MaxLength(500)
+  title!: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  sourceRef?: string;
 }
 
 @InputType()

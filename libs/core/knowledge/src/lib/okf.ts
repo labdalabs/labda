@@ -12,7 +12,14 @@ export type OkfNodeType =
   | 'Reference'
   | 'Notebook' // the computational record (Jupyter) of a Protocol
   | 'Analysis' // computational work over a Protocol's data
-  | 'Thesis'; // the write-up (Report → Preprint → Paper); forthcoming entity
+  | 'Thesis' // the write-up (Report → Preprint → Paper); forthcoming entity
+  // Author-first node types — nodes users and agents write directly.
+  | 'Idea'
+  | 'Observation'
+  | 'Conclusion'
+  | 'Knowledge'
+  | 'Data'
+  | 'Paper';
 
 export type OkfPredicate =
   | 'contains' // Project → Hypothesis / Protocol / Thesis
@@ -67,6 +74,16 @@ export interface GraphInputs {
   theses?: { id: string; title: string }[];
   // User-drawn links between existing node ids (Obsidian-like).
   links?: { id: string; fromNodeId: string; toNodeId: string; label: string | null }[];
+  // First-class nodes authored by users/agents (KnowledgeNode table). They have
+  // no structural edges by default — they connect via user `linked` edges.
+  authoredNodes?: {
+    id: string;
+    type: OkfNodeType;
+    title: string;
+    content?: string | null;
+    sourceRef?: string | null;
+    attributes?: Record<string, unknown>;
+  }[];
 }
 
 export function buildOkfGraph(input: GraphInputs): OkfGraph {
@@ -83,18 +100,11 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
     edges.push({ id: `${predicate}:${from}->${to}`, from, to, predicate, attributes });
   };
 
-  const projectNodeId = `project:${input.project.id}`;
-  addNode({
-    id: projectNodeId,
-    type: 'Project',
-    label: input.project.title,
-    attributes: { description: input.project.description },
-  });
-
+  // The Project is no longer a rendered node — it is container context. Its
+  // hypotheses and protocols are anchored as their own top-level nodes.
   for (const h of input.hypotheses) {
     const hId = `hypothesis:${h.id}`;
     addNode({ id: hId, type: 'Hypothesis', label: h.statement, attributes: {} });
-    addEdge(projectNodeId, hId, 'contains');
 
     const refs = input.referencesByHypothesis[h.id] ?? [];
     const stances = input.stancesByHypothesis[h.id] ?? [];
@@ -125,7 +135,6 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
       label: p.title,
       attributes: { version: p.version },
     });
-    addEdge(projectNodeId, pId, 'contains');
   }
 
   // Notebooks — one per Protocol that has a computational record.
@@ -156,11 +165,26 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
     addEdge(aId, pId, 'analyzes');
   }
 
-  // Theses — write-ups belonging to the Project.
+  // Theses — write-ups belonging to the Project. Anchored as their own nodes
+  // now that the Project is no longer a rendered node.
   for (const t of input.theses ?? []) {
     const tId = `thesis:${t.id}`;
     addNode({ id: tId, type: 'Thesis', label: t.title, attributes: {} });
-    addEdge(projectNodeId, tId, 'contains');
+  }
+
+  // Authored nodes — first-class nodes users/agents wrote (KnowledgeNode table),
+  // namespaced "node:<uuid>". No structural edges: they connect via `linked`.
+  for (const an of input.authoredNodes ?? []) {
+    addNode({
+      id: `node:${an.id}`,
+      type: an.type,
+      label: an.title,
+      attributes: {
+        content: an.content ?? '',
+        sourceRef: an.sourceRef ?? null,
+        ...(an.attributes ?? {}),
+      },
+    });
   }
 
   // User-drawn links — only between nodes that exist in this graph.
@@ -176,7 +200,8 @@ export function buildOkfGraph(input: GraphInputs): OkfGraph {
     }
   }
 
-  return { format: 'okf/1.0', rootId: projectNodeId, nodes, edges };
+  // The Project is no longer a node, so there is no single root.
+  return { format: 'okf/1.0', rootId: '', nodes, edges };
 }
 
 // Free browse (fff-style): the neighbourhood of a node — its incident edges and

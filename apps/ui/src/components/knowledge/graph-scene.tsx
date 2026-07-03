@@ -20,6 +20,12 @@ const NODE_TOKEN: Record<OkfNodeType, { varName: string; fallback: string }> = {
   Notebook: { varName: '--node-notebook', fallback: '#14b8a6' },
   Analysis: { varName: '--node-analysis', fallback: '#f43f5e' },
   Thesis: { varName: '--node-thesis', fallback: '#6366f1' },
+  Idea: { varName: '--node-idea', fallback: '#facc15' },
+  Observation: { varName: '--node-observation', fallback: '#38bdf8' },
+  Conclusion: { varName: '--node-conclusion', fallback: '#a3e635' },
+  Knowledge: { varName: '--node-knowledge', fallback: '#d946ef' },
+  Data: { varName: '--node-data', fallback: '#22d3ee' },
+  Paper: { varName: '--node-paper', fallback: '#fb923c' },
 };
 
 // Dendrite (edge) accents per predicate, tuned to glow on the dark field.
@@ -45,6 +51,12 @@ const NODE_GLYPH: Record<OkfNodeType, string> = {
   Notebook: '▤',
   Analysis: '▲',
   Thesis: '¶',
+  Idea: '✦',
+  Observation: '◎',
+  Conclusion: '✓',
+  Knowledge: '❖',
+  Data: '▦',
+  Paper: '§',
 };
 
 const LABEL_FONT =

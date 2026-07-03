@@ -33,6 +33,13 @@ const DIR: Record<OkfNode['type'], string> = {
   Notebook: 'notebooks',
   Analysis: 'analyses',
   Thesis: 'theses',
+  // Author-first nodes (KnowledgeNode table) share a single bundle directory.
+  Idea: 'nodes',
+  Observation: 'nodes',
+  Conclusion: 'nodes',
+  Knowledge: 'nodes',
+  Data: 'nodes',
+  Paper: 'nodes',
 };
 
 function localId(nodeId: string): string {
@@ -72,24 +79,19 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const files: OkfFile[] = [];
 
-  const project = byId.get(graph.rootId);
   const outgoing = (id: string, predicate: string) =>
     graph.edges.filter((e) => e.from === id && e.predicate === predicate);
   const incoming = (id: string, predicate: string) =>
     graph.edges.filter((e) => e.to === id && e.predicate === predicate);
 
-  // ── Project index.md ──
-  if (project) {
-    const hyps = outgoing(project.id, 'contains')
-      .map((e) => byId.get(e.to))
-      .filter((n): n is OkfNode => n?.type === 'Hypothesis');
-    const prots = outgoing(project.id, 'contains')
-      .map((e) => byId.get(e.to))
-      .filter((n): n is OkfNode => n?.type === 'Protocol');
+  // ── Root index.md ──
+  // The Project is no longer a rendered node (it is container context), so the
+  // root index is assembled from the graph's top-level nodes directly.
+  {
+    const hyps = graph.nodes.filter((n) => n.type === 'Hypothesis');
+    const prots = graph.nodes.filter((n) => n.type === 'Protocol');
 
-    let body = `# ${project.label}\n\n`;
-    const desc = project.attributes['description'];
-    if (typeof desc === 'string' && desc) body += `${desc}\n\n`;
+    let body = `# Knowledge Graph\n\n`;
     body += `## Hypotheses\n\n`;
     body += hyps.length
       ? hyps.map((h) => `- ${linkTo('index.md', h)}`).join('\n') + '\n\n'
@@ -103,9 +105,8 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
       path: 'index.md',
       content:
         frontmatter({
-          type: 'Project',
-          title: project.label,
-          description: desc,
+          type: 'Index',
+          title: 'Knowledge Graph',
         }) + body,
     });
   }
@@ -129,7 +130,7 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
       .map((e) => byId.get(e.to))
       .filter((n): n is OkfNode => !!n);
     let body = `# ${h.label}\n\n`;
-    body += `Part of ${linkTo(path, project!)}.\n\n`;
+    body += `Part of the [knowledge graph](${'../'.repeat(path.split('/').length - 1)}index.md).\n\n`;
     body += `## References\n\n`;
     if (citedRefs.length) {
       for (const r of citedRefs) {
@@ -185,7 +186,7 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
     const analyses = incoming(p.id, 'analyzes')
       .map((e) => byId.get(e.from))
       .filter((n): n is OkfNode => !!n);
-    let body = `# ${p.label}\n\nPart of ${linkTo(path, project!)}.\n`;
+    let body = `# ${p.label}\n\nPart of the [knowledge graph](${'../'.repeat(path.split('/').length - 1)}index.md).\n`;
     if (notebooks.length) {
       body += `\nRecorded by ${notebooks.map((n) => linkTo(path, n)).join(', ')}.\n`;
     }
@@ -243,7 +244,7 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
       path,
       content:
         frontmatter({ type: 'Thesis', title: t.label }) +
-        `# ${t.label}\n\nPart of ${linkTo(path, project!)}.\n`,
+        `# ${t.label}\n\nPart of the [knowledge graph](${'../'.repeat(path.split('/').length - 1)}index.md).\n`,
     });
   }
 

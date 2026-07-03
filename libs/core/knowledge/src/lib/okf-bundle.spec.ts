@@ -47,8 +47,8 @@ describe('OKF bundle (to spec)', () => {
     }
   });
 
-  it('the Project concept is index.md with type Project', () => {
-    expect(frontmatter(byPath.get('index.md')!)['type']).toBe('Project');
+  it('the root concept is index.md with type Index (Project is no longer a node)', () => {
+    expect(frontmatter(byPath.get('index.md')!)['type']).toBe('Index');
   });
 
   it('a Reference carries its source URL as `resource`', () => {

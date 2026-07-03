@@ -66,12 +66,10 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
   await page.getByTestId('open-graph').click();
   await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
 
-  // Nodes render for each entity type.
-  const nodes = page.getByTestId('graph-node');
-  await expect(nodes.filter({ has: page.locator('[data-node-type="Project"]') })).toBeDefined();
+  // The Project is a container, not a node; its entities render as nodes.
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Project"]'),
-  ).toHaveCount(1);
+  ).toHaveCount(0);
   await expect(
     page.locator('[data-testid="graph-node"][data-node-type="Hypothesis"]'),
   ).toHaveCount(1);
@@ -79,19 +77,26 @@ test('knowledge canvas renders the graph, opens entities, links nodes, persists'
     page.locator('[data-testid="graph-node"][data-node-type="Protocol"]'),
   ).toHaveCount(1);
 
+  // Author a new markdown node of a chosen type; it joins the graph.
+  await page.getByTestId('add-node-toggle').click();
+  const composer = page.getByTestId('node-composer');
+  await composer.getByRole('button', { name: 'Observation' }).click();
+  await composer.getByLabel('Node title').fill('Cells cluster under stress');
+  await composer.getByRole('button', { name: 'Add node' }).click();
+  await expect(
+    page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
+  ).toHaveCount(1);
+
   // Link two nodes (Obsidian-like) and confirm it persists.
   await expect(page.getByTestId('linked-count')).toContainText('0 user links');
   await page.getByTestId('link-mode-toggle').click();
-  await page
-    .locator('[data-node-type="Project"] button')
-    .first()
-    .click();
-  await page
-    .locator('[data-node-type="Protocol"] button')
-    .first()
-    .click();
+  await page.locator('[data-node-type="Hypothesis"] button').first().click();
+  await page.locator('[data-node-type="Protocol"] button').first().click();
   await expect(page.getByTestId('linked-count')).toContainText('1 user link');
 
   await page.reload();
   await expect(page.getByTestId('linked-count')).toContainText('1 user link');
+  await expect(
+    page.locator('[data-testid="graph-node"][data-node-type="Observation"]'),
+  ).toHaveCount(1);
 });

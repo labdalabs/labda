@@ -43,6 +43,13 @@
       "when": 1782994017839,
       "tag": "0005_nifty_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783037852370,
+      "tag": "0006_white_skullbuster",
+      "breakpoints": true
     }
   ]
 }

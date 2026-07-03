@@ -4,7 +4,12 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { DB_CONNECTION, SUPABASE_ADMIN, knowledgeLink } from '@labda/core-common';
+import {
+  DB_CONNECTION,
+  SUPABASE_ADMIN,
+  knowledgeLink,
+  knowledgeNode,
+} from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { ResearchFacade } from '@labda/core-research';
 import { ProtocolFacade } from '@labda/core-protocol';
@@ -15,10 +20,12 @@ import {
   neighbours,
   type GraphInputs,
   type OkfGraph,
+  type OkfNodeType,
 } from './okf';
 import { toOkfBundle, type OkfFile } from './okf-bundle';
 
 type LinkRow = typeof knowledgeLink.$inferSelect;
+type NodeRow = typeof knowledgeNode.$inferSelect;
 
 // Cell count of an nbformat JSON string; 0 when unparseable.
 function countNotebookCells(notebook: string): number {
@@ -110,6 +117,7 @@ export class KnowledgeService {
     ).flat();
 
     const links = await this.listLinks(user, projectId);
+    const authored = await this.listNodes(user, projectId);
 
     return buildOkfGraph({
       project: {
@@ -135,6 +143,14 @@ export class KnowledgeService {
         fromNodeId: l.fromNodeId,
         toNodeId: l.toNodeId,
         label: l.label,
+      })),
+      authoredNodes: authored.map((n) => ({
+        id: n.id,
+        type: n.type as OkfNodeType,
+        title: n.title,
+        content: n.content,
+        sourceRef: n.sourceRef,
+        attributes: n.attributes,
       })),
     });
   }
@@ -179,6 +195,76 @@ export class KnowledgeService {
       .from(knowledgeLink)
       .where(eq(knowledgeLink.projectId, projectId))
       .orderBy(desc(knowledgeLink.createdAt));
+  }
+
+  // ── Authored knowledge nodes (user/agent-written first-class nodes) ──
+
+  async listNodes(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<NodeRow[]> {
+    await this.researchFacade.getProject(user, projectId);
+    return this.db
+      .select()
+      .from(knowledgeNode)
+      .where(eq(knowledgeNode.projectId, projectId))
+      .orderBy(desc(knowledgeNode.createdAt));
+  }
+
+  async createNode(
+    user: AuthenticatedUser,
+    input: {
+      projectId: string;
+      type: OkfNodeType;
+      title: string;
+      content?: string;
+      sourceRef?: string;
+    },
+  ): Promise<NodeRow> {
+    // Ownership check (throws if not the caller's Project).
+    await this.researchFacade.getProject(user, input.projectId);
+    const [row] = await this.db
+      .insert(knowledgeNode)
+      .values({
+        projectId: input.projectId,
+        ownerId: user.id,
+        type: input.type,
+        title: input.title,
+        content: input.content ?? '',
+        sourceRef: input.sourceRef ?? null,
+      })
+      .returning();
+    this.logger.log(
+      { projectId: input.projectId, type: input.type },
+      'Created knowledge node',
+    );
+    return row;
+  }
+
+  async updateNode(
+    user: AuthenticatedUser,
+    id: string,
+    patch: { title?: string; content?: string; sourceRef?: string },
+  ): Promise<NodeRow> {
+    // Ownership: only the node's owner may update it.
+    const [existing] = await this.db
+      .select()
+      .from(knowledgeNode)
+      .where(eq(knowledgeNode.id, id));
+    if (!existing || existing.ownerId !== user.id) {
+      throw new Error('Knowledge node not found');
+    }
+    const [row] = await this.db
+      .update(knowledgeNode)
+      .set({
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.content !== undefined ? { content: patch.content } : {}),
+        ...(patch.sourceRef !== undefined ? { sourceRef: patch.sourceRef } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(knowledgeNode.id, id))
+      .returning();
+    return row;
   }
 
   // fff-style free browse: the neighbourhood of a node in the Project graph.

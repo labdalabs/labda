@@ -5,7 +5,27 @@ export type OkfNodeType =
   | 'Reference'
   | 'Notebook'
   | 'Analysis'
-  | 'Thesis';
+  | 'Thesis'
+  // User/agent-authored node types.
+  | 'Idea'
+  | 'Observation'
+  | 'Conclusion'
+  | 'Knowledge'
+  | 'Data'
+  | 'Paper';
+
+// The authored node types a user can create by hand (the derived ones —
+// Project/Hypothesis/Protocol/Reference/Notebook/Analysis/Thesis — come from
+// domain entities, not the node composer).
+export const AUTHORABLE_NODE_TYPES: OkfNodeType[] = [
+  'Idea',
+  'Observation',
+  'Conclusion',
+  'Knowledge',
+  'Data',
+  'Paper',
+  'Notebook',
+];
 export type OkfPredicate =
   | 'contains'
   | 'cites'

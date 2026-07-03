@@ -3,15 +3,17 @@ import { CurrentUser } from '@labda/core-common';
 import type { AuthenticatedUser } from '@labda/core-common';
 import { KnowledgeService } from './knowledge.service';
 import {
+  CreateKnowledgeNodeInput,
   KnowledgeExport,
   KnowledgeGraph,
   KnowledgeLinkType,
   KnowledgeLocalExport,
+  KnowledgeNodeType,
   LinkNodesInput,
   type OkfNodeTypeGql,
   type OkfPredicateGql,
 } from './knowledge.models';
-import type { OkfGraph } from './okf';
+import type { OkfGraph, OkfNodeType } from './okf';
 
 function toGql(graph: OkfGraph): KnowledgeGraph {
   return {
@@ -59,6 +61,29 @@ export class KnowledgeResolver {
     @Args('projectId', { type: () => ID }) projectId: string,
   ): Promise<KnowledgeLocalExport> {
     return this.knowledgeService.exportOkfLocal(user, projectId);
+  }
+
+  @Mutation(() => KnowledgeNodeType)
+  async createKnowledgeNode(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: CreateKnowledgeNodeInput,
+  ): Promise<KnowledgeNodeType> {
+    const row = await this.knowledgeService.createNode(user, {
+      projectId: input.projectId,
+      type: input.type as OkfNodeType,
+      title: input.title,
+      content: input.content,
+      sourceRef: input.sourceRef,
+    });
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      type: row.type as OkfNodeTypeGql,
+      title: row.title,
+      content: row.content,
+      sourceRef: row.sourceRef,
+      createdAt: row.createdAt,
+    };
   }
 
   @Mutation(() => KnowledgeLinkType)

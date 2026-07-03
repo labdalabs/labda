@@ -122,6 +122,13 @@
   --node-notebook: #14b8a6; /* teal — the computational record */
   --node-analysis: #f43f5e; /* rose — results/insight */
   --node-thesis: #6366f1; /* indigo — the write-up */
+  /* User/agent-authored node types. */
+  --node-idea: #facc15; /* yellow — a spark */
+  --node-observation: #38bdf8; /* sky — what was seen */
+  --node-conclusion: #a3e635; /* lime — settled */
+  --node-knowledge: #d946ef; /* magenta — consolidated */
+  --node-data: #22d3ee; /* cyan — measurements */
+  --node-paper: #fb923c; /* orange — publication */
 }
 
 .dark {
@@ -178,6 +185,12 @@
   --color-node-notebook: var(--node-notebook);
   --color-node-analysis: var(--node-analysis);
   --color-node-thesis: var(--node-thesis);
+  --color-node-idea: var(--node-idea);
+  --color-node-observation: var(--node-observation);
+  --color-node-conclusion: var(--node-conclusion);
+  --color-node-knowledge: var(--node-knowledge);
+  --color-node-data: var(--node-data);
+  --color-node-paper: var(--node-paper);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

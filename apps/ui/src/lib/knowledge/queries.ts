@@ -1,5 +1,5 @@
 import { graphql } from '@/lib/api/graphql';
-import type { KnowledgeGraph } from './types';
+import type { KnowledgeGraph, OkfNodeType } from './types';
 
 export async function knowledgeGraph(
   projectId: string,
@@ -31,6 +31,24 @@ export async function linkKnowledge(input: {
     { input },
   );
   return data.linkKnowledge;
+}
+
+// Author a new knowledge node (idea, observation, data, paper…) as an OKF
+// markdown entry, optionally pointing at a source file.
+export async function createKnowledgeNode(input: {
+  projectId: string;
+  type: OkfNodeType;
+  title: string;
+  content?: string;
+  sourceRef?: string;
+}): Promise<{ id: string }> {
+  const data = await graphql<{ createKnowledgeNode: { id: string } }>(
+    `mutation CreateKnowledgeNode($input: CreateKnowledgeNodeInput!) {
+      createKnowledgeNode(input: $input) { id type title }
+    }`,
+    { input },
+  );
+  return data.createKnowledgeNode;
 }
 
 export async function exportKnowledge(

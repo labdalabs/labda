@@ -4,12 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiError } from '@/lib/api/client';
 import {
+  createKnowledgeNode,
   exportKnowledge,
   knowledgeGraph,
   linkKnowledge,
 } from '@/lib/knowledge/queries';
 import { useKnowledgeCanvas } from '@/lib/knowledge/store';
-import type { KnowledgeNode, OkfNodeType } from '@/lib/knowledge/types';
+import {
+  AUTHORABLE_NODE_TYPES,
+  type KnowledgeNode,
+  type OkfNodeType,
+} from '@/lib/knowledge/types';
 import { GraphScene, type GraphControls } from './graph-scene';
 import { ShaderBackground } from './shader-background';
 
@@ -23,6 +28,12 @@ const TYPE_DOT: Record<OkfNodeType, string> = {
   Notebook: 'bg-node-notebook',
   Analysis: 'bg-node-analysis',
   Thesis: 'bg-node-thesis',
+  Idea: 'bg-node-idea',
+  Observation: 'bg-node-observation',
+  Conclusion: 'bg-node-conclusion',
+  Knowledge: 'bg-node-knowledge',
+  Data: 'bg-node-data',
+  Paper: 'bg-node-paper',
 };
 
 // Dark-glass instrument panels that float over the microscopy field.
@@ -97,6 +108,10 @@ function hrefFor(node: KnowledgeNode, projectId: string): string | null {
         return null;
       }
     }
+    // Authored nodes (Idea/Observation/Conclusion/Knowledge/Data/Paper) open
+    // in the focus dossier rather than navigating away.
+    default:
+      return null;
   }
 }
 
@@ -120,6 +135,12 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [controls, setControls] = useState<GraphControls | null>(null);
+  // Node composer.
+  const [composing, setComposing] = useState(false);
+  const [nodeType, setNodeType] = useState<OkfNodeType>('Idea');
+  const [nodeTitle, setNodeTitle] = useState('');
+  const [nodeBody, setNodeBody] = useState('');
+  const [savingNode, setSavingNode] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -160,6 +181,30 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
       return;
     }
     select(node.id);
+  }
+
+  async function handleCreateNode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nodeTitle.trim()) return;
+    setSavingNode(true);
+    setError('');
+    try {
+      await createKnowledgeNode({
+        projectId,
+        type: nodeType,
+        title: nodeTitle.trim(),
+        content: nodeBody.trim() || undefined,
+      });
+      setNodeTitle('');
+      setNodeBody('');
+      setComposing(false);
+      setStatus('Node added to the tissue');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setSavingNode(false);
+    }
   }
 
   async function handleExport() {
@@ -350,8 +395,88 @@ export function KnowledgeCanvas({ projectId }: { projectId: string }) {
         </div>
       </div>
 
+      {/* Node composer — write a markdown node of any type. */}
+      {composing && (
+        <div className="absolute inset-x-0 top-3 z-40 flex justify-center px-3">
+          <form
+            onSubmit={handleCreateNode}
+            className={`${SURFACE} w-full max-w-lg space-y-3 p-4`}
+            data-testid="node-composer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-white/85">New node</span>
+              <button
+                type="button"
+                className="text-white/45 transition-colors hover:text-white"
+                onClick={() => setComposing(false)}
+                aria-label="Cancel"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Node type">
+              {AUTHORABLE_NODE_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setNodeType(t)}
+                  aria-pressed={nodeType === t}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    nodeType === t
+                      ? 'border-white/30 bg-white/15 text-white'
+                      : 'border-white/10 text-white/60 hover:bg-white/10'
+                  }`}
+                >
+                  <span className={`h-2 w-2 rounded-full ${TYPE_DOT[t]}`} />
+                  {t}
+                </button>
+              ))}
+            </div>
+            <input
+              className="w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              placeholder="Title"
+              aria-label="Node title"
+              value={nodeTitle}
+              onChange={(e) => setNodeTitle(e.target.value)}
+              autoFocus
+              required
+            />
+            <textarea
+              className="min-h-24 w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              placeholder="Write markdown… (a source file — PDF/CSV — can be attached next)"
+              aria-label="Node content"
+              value={nodeBody}
+              onChange={(e) => setNodeBody(e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={savingNode || !nodeTitle.trim()}
+                className="rounded-lg bg-white/95 px-3 py-1.5 text-sm font-medium text-[#0a0f1c] transition-colors hover:bg-white disabled:opacity-50"
+              >
+                {savingNode ? 'Adding…' : 'Add node'}
+              </button>
+              <span className="text-[11px] text-white/40">
+                Stored as an OKF markdown node.
+              </span>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Toolbar — minimal pills, top-right. */}
       <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setComposing((v) => !v)}
+          data-testid="add-node-toggle"
+          className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs shadow-sm transition-colors ${
+            composing ? 'bg-white text-[#0a0f1c]' : `${SURFACE} text-white/85 hover:bg-white/10`
+          }`}
+        >
+          <CtrlIcon path="M12 5v14M5 12h14" />
+          Add node
+        </button>
         <button
           type="button"
           onClick={toggleLinkMode}
