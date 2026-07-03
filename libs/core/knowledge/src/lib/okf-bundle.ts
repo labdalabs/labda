@@ -121,7 +121,8 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
     Thesis: [],
   };
   for (const n of graph.nodes) {
-    if (n.type in groups) groups[n.type].push(n);
+    // Authored nodes (node:<uuid>) are emitted separately, below.
+    if (n.type in groups && !n.id.startsWith('node:')) groups[n.type].push(n);
   }
 
   for (const h of groups['Hypothesis']) {
@@ -245,6 +246,40 @@ export function toOkfBundle(graph: OkfGraph): OkfFile[] {
       content:
         frontmatter({ type: 'Thesis', title: t.label }) +
         `# ${t.label}\n\nPart of the [knowledge graph](${'../'.repeat(path.split('/').length - 1)}index.md).\n`,
+    });
+  }
+
+  // Authored nodes (KnowledgeNode) — the researcher's own markdown, filed under
+  // nodes/. `resource:` points at an attached source file (path/URL) when set.
+  for (const n of graph.nodes) {
+    if (!n.id.startsWith('node:')) continue;
+    const path = filePath(n);
+    const content =
+      typeof n.attributes['content'] === 'string'
+        ? (n.attributes['content'] as string)
+        : '';
+    const source =
+      typeof n.attributes['sourceRef'] === 'string'
+        ? (n.attributes['sourceRef'] as string)
+        : undefined;
+    const linked = graph.edges
+      .filter(
+        (e) =>
+          e.predicate === 'linked' && (e.from === n.id || e.to === n.id),
+      )
+      .map((e) => byId.get(e.from === n.id ? e.to : e.from))
+      .filter((x): x is OkfNode => !!x);
+    let body = `# ${n.label}\n\nPart of the [knowledge graph](${'../'.repeat(
+      path.split('/').length - 1,
+    )}index.md).\n\n`;
+    if (content) body += `${content}\n\n`;
+    if (linked.length) {
+      body += `Linked: ${linked.map((l) => linkTo(path, l)).join(', ')}.\n`;
+    }
+    files.push({
+      path,
+      content:
+        frontmatter({ type: n.type, title: n.label, resource: source }) + body,
     });
   }
 
