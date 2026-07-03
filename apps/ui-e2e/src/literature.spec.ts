@@ -48,11 +48,24 @@ test('open Hypothesis → search literature → attach → Reference appears', a
   await page.getByRole('button', { name: 'Create Project' }).click();
   await page.getByRole('link', { name: new RegExp(projectTitle) }).click();
 
-  await page.getByLabel('Hypothesis statement').fill('CRISPR increases yield');
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
-  await expect(page.getByText('CRISPR increases yield')).toBeVisible();
+  // Add a Hypothesis in the graph, place it, and open its detail panel.
+  await page.getByTestId('open-graph').click();
+  await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
+  await page.getByTestId('add-node-toggle').click();
+  const composer = page.getByTestId('node-composer');
+  await composer.getByRole('button', { name: 'Hypothesis', exact: true }).click();
+  await composer.getByLabel('Node title').fill('CRISPR increases yield');
+  await composer.getByRole('button', { name: 'Add' }).click();
+  await page
+    .getByTestId('tray-node')
+    .filter({ hasText: 'CRISPR increases yield' })
+    .dragTo(page.getByTestId('hex-drop').first());
+  await page
+    .locator('[data-testid="graph-node"][data-node-type="Hypothesis"]')
+    .click();
+  await expect(page.getByTestId('node-panel')).toBeVisible();
 
-  // Search literature from the Hypothesis.
+  // Literature search now lives on the Hypothesis cell's detail panel.
   const refsPanel = page.getByTestId('hypothesis-references').first();
   await refsPanel.getByLabel('Literature search query').fill('CRISPR yield');
   await refsPanel.getByRole('button', { name: 'Search' }).click();
@@ -71,9 +84,11 @@ test('open Hypothesis → search literature → attach → Reference appears', a
   await expect(refList).toBeVisible();
   await expect(refList.getByRole('link', { name: 'Source' }).first()).toBeVisible();
 
-  // Persists across reload.
+  // Persists across reload (reopen the board + the cell's panel).
   await page.reload();
-  await expect(
-    page.getByTestId('reference-list').first(),
-  ).toBeVisible();
+  await page.getByTestId('open-graph').click();
+  await page
+    .locator('[data-testid="graph-node"][data-node-type="Hypothesis"]')
+    .click();
+  await expect(page.getByTestId('reference-list').first()).toBeVisible();
 });

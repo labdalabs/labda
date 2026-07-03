@@ -63,20 +63,27 @@ test('sign in → create Project → add Hypothesis → see it listed', async ({
   const projectLink = page.getByRole('link', { name: new RegExp(projectTitle) });
   await expect(projectLink).toBeVisible();
 
-  // Open it and add a Hypothesis.
+  // Open it and add a Hypothesis via the graph composer (the single create
+  // surface — the overview form was retired).
   await projectLink.click();
+  await page.getByTestId('open-graph').click();
+  await expect(page.getByTestId('knowledge-canvas')).toBeVisible();
+  await page.getByTestId('add-node-toggle').click();
+  const composer = page.getByTestId('node-composer');
+  await composer.getByRole('button', { name: 'Hypothesis', exact: true }).click();
+  const statement = 'Compound X inhibits enzyme Y';
+  await composer.getByLabel('Node title').fill(statement);
+  await composer.getByRole('button', { name: 'Add' }).click();
+
+  // The Hypothesis appears in the project.
   await expect(
-    page.getByRole('heading', { name: projectTitle }),
+    page.getByTestId('tray-node').filter({ hasText: statement }),
   ).toBeVisible();
 
-  const statement = 'Compound X inhibits enzyme Y';
-  await page.getByLabel('Hypothesis statement').fill(statement);
-  await page.getByRole('button', { name: 'Add Hypothesis' }).click();
-
-  // The Hypothesis is listed under the Project.
-  await expect(page.getByText(statement)).toBeVisible();
-
-  // Reload to confirm persistence.
+  // Persists across reload (reopen the board tab).
   await page.reload();
-  await expect(page.getByText(statement)).toBeVisible();
+  await page.getByTestId('open-graph').click();
+  await expect(
+    page.getByTestId('tray-node').filter({ hasText: statement }),
+  ).toBeVisible();
 });
